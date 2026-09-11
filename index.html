@@ -50,6 +50,7 @@
   --z-sticky: 100;
   --z-screen: 200;
   --z-toast: 400;
+  --ease-exit: cubic-bezier(0.19, 1, 0.22, 1);   /* strong ease-out; the saved-card exit (motion brief 2026-09-11) */
 }
 @media (min-resolution: 192dpi) {
   :root { --border-hairline: 0.5px; }
@@ -212,7 +213,8 @@ input[type="search"]:focus { border-color: var(--accent); outline: none; box-sha
 .filter-summary button { color: var(--accent-strong); font-size: 0.8125rem; font-weight: 500; min-height: 44px; }
 
 /* ---------- cards ---------- */
-.list { display: grid; gap: 12px; padding-block: 12px; }
+.list { display: flex; flex-direction: column; gap: 12px; padding-block: 12px; }  /* flex, not grid: a departing card collapses its own slot via negative margin */
+.card.exiting { pointer-events: none; }   /* the exit never gates input: taps fall through to what's beneath */
 .card {
   background: var(--card);
   border-radius: var(--r-card);
@@ -652,6 +654,8 @@ const S = {
   forms: new Map(),          // "town|STREET" -> street_forms row
   priceEvents: new Map(),    // property_id -> {listPrice, listedOn, prevPrice, pending}
   ceiling: null,
+  exiting: 0,                // saved-card exits in flight; render() waits for the last
+  reenter: new Set(),        // ids whose failed save should animate back in on next render
   open: new Set(),           // property ids with an open form
   drafts: new Map(),         // property_id -> draft
   saveErrs: new Map(),       // property_id -> message
@@ -1061,8 +1065,29 @@ function render() {
   $('f-nhood').hidden = S.filters.town !== 'Beverly';   // the neighbourhood layer exists only for Beverly
 
   const list = $('list');
-  if (queue.length) {
+  const inFlight = list.querySelectorAll('.card.exiting');
+  if (queue.length && inFlight.length) {
+    // A save's exit is mid-flight and something else re-rendered (next card's
+    // form, a filter, a tab). A wholesale innerHTML rebuild would detach the
+    // departing card and snap it away — so patch by id instead: refresh or
+    // insert every wanted card in place, remove the gone ones, leave the
+    // exiting ones exactly where they are so their transition runs to the end.
+    const wanted = new Set(queue.map(p => p.id));
+    for (const el of [...list.children])
+      if (!el.classList.contains('exiting') && !(el.classList.contains('card') && wanted.has(+el.dataset.id))) el.remove();
+    let cursor = list.firstElementChild;
+    for (const p of queue) {
+      while (cursor && cursor.classList.contains('exiting')) cursor = cursor.nextElementSibling;
+      const fresh = document.createRange().createContextualFragment(card(p, false)).firstElementChild;
+      if (cursor && +cursor.dataset.id === p.id) { cursor.replaceWith(fresh); cursor = fresh.nextElementSibling; }
+      else list.insertBefore(fresh, cursor);
+      if (S.reenter.has(p.id)) enterCard(fresh);
+    }
+    S.reenter.clear();
+  } else if (queue.length) {
     list.innerHTML = queue.map(p => card(p, false)).join('');
+    for (const id of S.reenter) enterCard(list.querySelector(`.card[data-id="${id}"]`));
+    S.reenter.clear();
   } else if (filtersActive()) {
     list.innerHTML = `<div class="empty"><div class="big">No homes match these filters</div>
       <button id="clear-filters-2">Clear filters</button></div>`;
@@ -1129,6 +1154,48 @@ function toggleForm(id) {
   }
 }
 
+// ---- saved-card exit (motion brief, Luke-confirmed 2026-09-11) ----
+// Starts at the tap (optimistic). Fade+scale 150ms while the slot collapses
+// 300ms, both from t=0 on --ease-exit; the list re-renders only after the
+// last in-flight exit finishes. Height/padding/margin animate by design here
+// (brief-backed deviation from transform/opacity-only): the collapse IS the
+// message — where the list closed.
+function exitCard(card, then) {
+  if (!card || matchMedia('(prefers-reduced-motion: reduce)').matches) { then(); return; }
+  let done = false;
+  const finish = () => { if (!done) { done = true; card.remove(); then(); } };   // gone before the re-render, so the patch path can't keep it
+  card.classList.add('exiting');
+  card.style.height = card.offsetHeight + 'px';   // pin, then collapse
+  card.style.overflow = 'hidden';
+  void card.offsetHeight;                          // flush: the pin must be the computed 'from'
+  card.style.transition = 'opacity 150ms var(--ease-exit), transform 150ms var(--ease-exit),' +
+    ' height 300ms var(--ease-exit), margin-bottom 300ms var(--ease-exit),' +
+    ' padding-top 300ms var(--ease-exit), padding-bottom 300ms var(--ease-exit)';
+  card.style.opacity = '0';
+  card.style.transform = 'scale(0.98)';
+  card.style.height = '0';
+  card.style.marginBottom = '-12px';               // eat this slot's list gap
+  card.style.paddingTop = '0';
+  card.style.paddingBottom = '0';
+  card.addEventListener('transitionend', e => {    // only the longest transition may finish it
+    if (e.target === card && e.propertyName === 'height') finish();
+  });
+  setTimeout(finish, 450);                         // hard fallback: the queue never sticks
+}
+// A failed save brings the card back the way it left (mirror, shorter).
+function enterCard(card) {
+  if (!card || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const h = card.offsetHeight;
+  card.style.overflow = 'hidden';
+  card.style.height = '0'; card.style.opacity = '0'; card.style.paddingTop = '0'; card.style.paddingBottom = '0';
+  void card.offsetHeight;
+  card.style.transition = 'opacity 200ms var(--ease-exit), height 200ms var(--ease-exit), padding-top 200ms var(--ease-exit), padding-bottom 200ms var(--ease-exit)';
+  card.style.height = h + 'px'; card.style.opacity = ''; card.style.paddingTop = ''; card.style.paddingBottom = '';
+  const clear = () => { card.style.transition = ''; card.style.height = ''; card.style.overflow = ''; };
+  card.addEventListener('transitionend', e => { if (e.target === card && e.propertyName === 'height') clear(); });
+  setTimeout(clear, 350);
+}
+
 async function save(id) {
   const p = S.props.find(x => x.id === id);
   const d = draftFor(p);
@@ -1150,8 +1217,23 @@ async function save(id) {
   S.open.delete(id);
   S.saveErrs.delete(id);
   S.pendingSaves++;
-  render();
   toast(`Saved — ${displayAddr(p.address)}`);
+  const el = $('list').querySelector(`.card[data-id="${id}"]`);
+  if (el) {
+    // remember where the saved card sat so focus can land on its successor
+    const idx = [...$('list').children].indexOf(el);
+    S.exiting++;
+    exitCard(el, () => {
+      S.exiting--;
+      if (S.exiting !== 0) return;
+      render();
+      if (document.activeElement === document.body) {        // focus died with the card (keyboard flow, a11y floor)
+        const cards = $('list').querySelectorAll('.card');
+        const next = cards[Math.min(idx, cards.length - 1)];
+        next?.querySelector('.eval-open')?.focus({ preventScroll: true });
+      }
+    });
+  } else render();
   try {
     const key = anonKey();
     const r = await fetch(`${SUPA_URL}/rest/v1/evaluations`, {
@@ -1167,7 +1249,8 @@ async function save(id) {
     localStorage.setItem('hh2-verdicts', JSON.stringify(S.localVerdicts));
     S.open.add(id);
     S.saveErrs.set(id, String(e.message || e));
-    render();
+    S.reenter.add(id);                             // render() plays the return
+    if (S.exiting === 0) render();                 // else the in-flight exit's finish renders
     toast(`Save failed — ${displayAddr(p.address)} is back in your queue`, true);
   } finally {
     S.pendingSaves--;

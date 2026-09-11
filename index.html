@@ -1359,13 +1359,15 @@ function exitCard(card, then, prefaded) {
 function enterCard(card) {
   if (!card) return;
   if (reduced()) { card.style.opacity = '0'; fadeTo(card, 1).then(() => { card.style.opacity = ''; }); return; }
+  card.style.contentVisibility = 'visible';        // measure the real height, not the content-visibility placeholder
   const h = card.offsetHeight;
   card.style.overflow = 'hidden';
-  card.style.height = '0'; card.style.opacity = '0'; card.style.paddingTop = '0'; card.style.paddingBottom = '0';
+  card.style.height = '0'; card.style.opacity = '0'; card.style.transform = 'scale(0.98)';   // the exit's mirror: fade + 2% scale + slot
+  card.style.paddingTop = '0'; card.style.paddingBottom = '0';
   void card.offsetHeight;
-  card.style.transition = 'opacity 200ms var(--ease-exit), height 200ms var(--ease-exit), padding-top 200ms var(--ease-exit), padding-bottom 200ms var(--ease-exit)';
-  card.style.height = h + 'px'; card.style.opacity = ''; card.style.paddingTop = ''; card.style.paddingBottom = '';
-  const clear = () => { card.style.transition = ''; card.style.height = ''; card.style.overflow = ''; };
+  card.style.transition = 'opacity 200ms var(--ease-exit), transform 200ms var(--ease-exit), height 200ms var(--ease-exit), padding-top 200ms var(--ease-exit), padding-bottom 200ms var(--ease-exit)';
+  card.style.height = h + 'px'; card.style.opacity = ''; card.style.transform = ''; card.style.paddingTop = ''; card.style.paddingBottom = '';
+  const clear = () => { card.style.transition = ''; card.style.height = ''; card.style.overflow = ''; card.style.contentVisibility = ''; };
   card.addEventListener('transitionend', e => { if (e.target === card && e.propertyName === 'height') clear(); });
   setTimeout(clear, 350);
 }

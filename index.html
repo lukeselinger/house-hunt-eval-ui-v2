@@ -230,10 +230,15 @@ input[type="search"]:focus { border-color: var(--accent); outline: none; box-sha
 .cut { font-size: 0.8125rem; color: var(--good-fg); font-weight: 500; }
 .specs { margin: 6px 0 0; font-size: 0.875rem; color: var(--ink-2);
   /* B2 trial: the same figure sits in the same column on every card (comparison
-     machinery); labels subtracted — units self-identify. Fixed column floors so
-     cards align; max-content lets a long value spill into its gap, not wrap. */
-  display: grid; column-gap: 6px; white-space: nowrap;
-  grid-template-columns: minmax(8.5ch, max-content) minmax(8.5ch, max-content) minmax(6ch, max-content) minmax(4ch, max-content) minmax(4.5ch, max-content); }
+     machinery); labels subtracted — units self-identify. Each cell has a fixed
+     floor so cards align; the row wraps (rather than overflows) below ~360px. */
+  display: flex; flex-wrap: wrap; column-gap: 4px; row-gap: 2px; white-space: nowrap; }
+.specs span { flex: 0 0 auto; }
+.specs span:nth-child(1) { min-width: 9ch; }     /* "4bd · 2.5ba" */
+.specs span:nth-child(2) { min-width: 8.5ch; }   /* "2,850 sqft" */
+.specs span:nth-child(3) { min-width: 6ch; }     /* "0.47 ac" */
+.specs span:nth-child(4) { min-width: 4ch; }     /* "1949" */
+.specs span:nth-child(5) { min-width: 4.5ch; }   /* "27 yr" — sums to ~298px at 375, one line */
 .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .tag {
   font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;

@@ -326,7 +326,7 @@ html { overflow-anchor: none; }  /* we place the scroll ourselves around exits; 
   box-shadow: inset 0 0 0 1px var(--line);
   font-size: 0.9375rem;
   text-align: left;
-  transition: box-shadow 150ms ease;
+  transition: box-shadow 150ms ease, transform 100ms ease;
 }
 .hurdle .hname { margin-right: auto; }
 .hurdle .hstate {
@@ -337,7 +337,7 @@ html { overflow-anchor: none; }  /* we place the scroll ourselves around exits; 
 }
 .hurdle[data-state="pass"] .hstate { background: var(--good-tint); color: var(--good-fg); }
 .hurdle[data-state="fail"] .hstate { background: var(--bad-tint); color: var(--bad-fg); }
-.hurdle:active { transform: scale(0.99); }
+.hurdle:active { transform: scale(0.98); }   /* full-width row */
 .choices { display: grid; gap: 6px; }
 .choices.cols-2 { grid-template-columns: 1fr 1fr; }
 .choice {
@@ -347,14 +347,14 @@ html { overflow-anchor: none; }  /* we place the scroll ourselves around exits; 
   box-shadow: inset 0 0 0 1px var(--line);
   font-size: 0.9375rem; font-weight: 500;
   text-align: center;
-  transition: box-shadow 150ms ease, background-color 150ms ease, color 150ms ease;
+  transition: box-shadow 150ms ease, background-color 150ms ease, color 150ms ease, transform 100ms ease;
 }
 .choice[aria-checked="true"], .choice[aria-pressed="true"] {
   background: var(--accent-tint);
   color: var(--accent-strong);
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
-.choice:active { transform: scale(0.98); }
+.choice:active { transform: scale(0.97); }   /* compact chip */
 .axes { display: flex; flex-wrap: wrap; gap: 6px; }
 .axes .choice { min-height: 44px; flex: none; display: inline-flex; align-items: center; gap: 6px; }
 .axes .ord {
@@ -1311,7 +1311,7 @@ function toggleForm(id) {
 // last in-flight exit finishes. Height/padding/margin animate by design here
 // (brief-backed deviation from transform/opacity-only): the collapse IS the
 // message — where the list closed.
-function exitCard(card, then) {
+function exitCard(card, then, prefaded) {
   if (!card || matchMedia('(prefers-reduced-motion: reduce)').matches) { then(); return; }
   let done = false;
   const finish = () => { if (!done) { done = true; card.remove(); then(); } };   // gone before the re-render, so the patch path can't keep it
@@ -1322,11 +1322,10 @@ function exitCard(card, then) {
   card.style.height = h + 'px';                    // pin, then collapse
   card.style.overflow = 'hidden';
   void card.offsetHeight;                          // flush: the pin must be the computed 'from'
-  card.style.transition = `opacity ${fade}ms var(--ease-exit), transform ${fade}ms var(--ease-exit),` +
-    ` height ${dur}ms var(--ease-exit), margin-bottom ${dur}ms var(--ease-exit),` +
+  card.style.transition = (prefaded ? '' : `opacity ${fade}ms var(--ease-exit), transform ${fade}ms var(--ease-exit), `) +
+    `height ${dur}ms var(--ease-exit), margin-bottom ${dur}ms var(--ease-exit),` +
     ` padding-top ${dur}ms var(--ease-exit), padding-bottom ${dur}ms var(--ease-exit)`;
-  card.style.opacity = '0';
-  card.style.transform = 'scale(0.98)';
+  if (!prefaded) { card.style.opacity = '0'; card.style.transform = 'scale(0.98)'; }
   card.style.height = '0';
   card.style.marginBottom = '-12px';               // eat this slot's list gap
   card.style.paddingTop = '0';
@@ -1378,7 +1377,13 @@ async function save(id) {
     const idx = [...$('list').children].indexOf(el);
     S.exiting++;
     el.classList.add('exiting');                   // input falls through from the tap onward
-    await scrollCardToAnchor(el);                  // the camera first: you watch the card you judged leave
+    // the card starts fading as the camera pans to it (feel-iteration 3: one departure, not pan-then-collapse)
+    const prefaded = !reduced();
+    if (prefaded) {
+      el.style.transition = 'opacity 250ms var(--ease-exit), transform 250ms var(--ease-exit)';
+      el.style.opacity = '0'; el.style.transform = 'scale(0.98)';
+    }
+    await scrollCardToAnchor(el);                  // then the slot closes from the anchor
     exitCard(el, () => {
       S.exiting--;
       if (S.exiting !== 0) return;
@@ -1388,7 +1393,7 @@ async function save(id) {
       if (next) pinToAnchor(next);                           // land on the successor, pinned under the tabs
       if (document.activeElement === document.body)          // focus died with the card (keyboard flow, a11y floor)
         next?.querySelector('.eval-open')?.focus({ preventScroll: true });
-    });
+    }, prefaded);
   } else render();
   try {
     const key = anonKey();

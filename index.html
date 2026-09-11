@@ -506,6 +506,10 @@ footer {
         <option value="">All towns</option>
         <option>Wenham</option>
         <option>Hamilton</option>
+        <option>Beverly</option>
+      </select>
+      <select id="f-nhood" aria-label="Beverly neighborhood filter" hidden>
+        <option value="">All neighborhoods</option>
       </select>
       <select id="f-road" aria-label="Road filter">
         <option value="">Any road</option>
@@ -579,8 +583,16 @@ const SUPA_URL = 'https://ivqotvufsdiultnhbdxc.supabase.co';
 const BAKED_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2cW90dnVmc2RpdWx0bmhiZHhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MDkyODksImV4cCI6MjA5NjQ4NTI4OX0.kgYnKuk6IekYJY66sLyddFk2IddWzBeR5W5VccxbZgM';
 const BAKED_CEILING = '1300000';
 const DEMO = new URLSearchParams(location.search).has('demo');
-const TOWNS = ['Wenham', 'Hamilton'];
-const ZIPS = { Wenham: '01984', Hamilton: '01982' };
+const TOWNS = ['Wenham', 'Hamilton', 'Beverly'];
+// Per-town watchlist predicate (2026-09-04 Beverly ratification,
+// house-hunt-beverly-spike.md): Wenham/Hamilton are whole-town in-target;
+// Beverly is carved (in_target_area = the four ratified zones) and its
+// colonial-family style set includes 'Dutch Col', which ilike *COLONIAL*
+// alone would miss. Same clauses as pipeline/watchlist_export.py.
+const TOWN_PREDICATE = t => t === 'Beverly'
+  ? { in_target_area: 'is.true', or: '(building_style.ilike.*COLONIAL*,building_style.eq.Dutch Col)' }
+  : { building_style: 'ilike.*COLONIAL*' };
+const ZIPS = { Wenham: '01984', Hamilton: '01982', Beverly: '01915' };
 const TENURE_YEARS = 15;
 const HURDLES = [
   ['main_road',   'Main road'],
@@ -633,7 +645,7 @@ const S = {
   drafts: new Map(),         // property_id -> draft
   saveErrs: new Map(),       // property_id -> message
   localVerdicts: JSON.parse(localStorage.getItem('hh2-verdicts') || '{}'),
-  filters: { search: '', town: '', road: '', form: '', beds: '', year: '', sort: 'price-asc' },
+  filters: { search: '', town: '', road: '', form: '', beds: '', year: '', nhood: '', sort: 'price-asc' },
   pendingSaves: 0,
   loaded: false,
 };
@@ -708,17 +720,17 @@ async function loadLive() {
       select: 'town,street,parcel_count,median_lot_sqft,median_far,far_p90,median_year_built',
     }),
     api('street_forms', { town: `in.(${TOWNS})`, select: 'town,street,form,terminus,length_m' }),
-    api('properties', {
-      town: `in.(${TOWNS})`,
-      building_style: 'ilike.*COLONIAL*',
+    Promise.all(TOWNS.map(t => api('properties', {
+      town: `eq.${t}`,
+      ...TOWN_PREDICATE(t),
       sqft: 'gte.1800',
       last_sale_price: 'gt.100000',
       last_sale_date: `lt.${tenureCutoff()}`,
       price_estimate: `lte.${CEIL}`,
       order: 'price_estimate.asc',
-      select: 'id,address,town,year_built,sqft,bedrooms,bathrooms,building_style,lot_size,' +
+      select: 'id,address,town,neighborhood,year_built,sqft,bedrooms,bathrooms,building_style,lot_size,' +
               'assessed_value,price_estimate,last_sale_date,last_sale_price,on_market,road_fclass,road_aadt',
-    }),
+    }))).then(byTown => byTown.flat()),
   ]);
 
   const soldIds = new Set(sold.map(r => r.property_id));
@@ -762,7 +774,7 @@ function ingest(props, ratios, marks, metrics, forms, events) {
 function loadDemo() {
   const P = (id, town, address, o) => Object.assign({
     id, town, address, building_style: 'COLONIAL', on_market: null,
-    road_fclass: 7, road_aadt: null,
+    road_fclass: 7, road_aadt: null, neighborhood: null,
   }, o);
   const props = [
     P(1, 'Wenham', '186 TOPSFIELD RD', { year_built: 1948, sqft: 2450, bedrooms: 4, bathrooms: 2.5, lot_size: 44431, assessed_value: 745000, price_estimate: 879100, last_sale_date: '1998-06-12', last_sale_price: 385000, road_fclass: 3, road_aadt: 11200 }),
@@ -775,10 +787,14 @@ function loadDemo() {
     P(8, 'Hamilton', '596 BAY RD', { year_built: 1910, sqft: 2600, bedrooms: 4, bathrooms: 2, lot_size: 26136, assessed_value: 640000, price_estimate: 736000, last_sale_date: '1999-03-19', last_sale_price: 300000, road_fclass: 2, road_aadt: 14800 }),
     P(9, 'Hamilton', '9 BLUEBERRY LN', { year_built: 1968, sqft: 2250, bedrooms: 4, bathrooms: 2, lot_size: 21780, assessed_value: 830000, price_estimate: 954500, last_sale_date: '2003-10-08', last_sale_price: 462000, on_market: true }),
     P(10, 'Wenham', '77 MAIN ST', { year_built: 1900, sqft: 2050, bedrooms: 3, bathrooms: 2, lot_size: 13068, assessed_value: 720000, price_estimate: 849600, last_sale_date: '1988-07-25', last_sale_price: 190000, on_market: true, road_fclass: 4, road_aadt: 9200 }),
+    P(11, 'Beverly', '31 HASKELL ST', { neighborhood: 'Beverly Farms', year_built: 1958, sqft: 2150, bedrooms: 4, bathrooms: 2, lot_size: 20473, assessed_value: 812000, price_estimate: 899700, last_sale_date: '2004-05-17', last_sale_price: 520000 }),
+    P(12, 'Beverly', '8 PRIDES HILL RD', { neighborhood: 'Prides Crossing', year_built: 1971, sqft: 2600, bedrooms: null, bathrooms: null, lot_size: 43560, assessed_value: 960000, price_estimate: 1063700, last_sale_date: '1996-09-09', last_sale_price: 340000 }),
+    P(13, 'Beverly', '120 ESSEX ST', { neighborhood: 'Centerville', year_built: 1985, sqft: 1900, bedrooms: 3, bathrooms: 2.5, lot_size: 11761, assessed_value: 640000, price_estimate: 709100, last_sale_date: '2007-02-28', last_sale_price: 455000, road_fclass: 3, road_aadt: 12400 }),
   ];
   const ratios = [
     { town: 'Wenham', r_median: 1.18, r_p75: 1.26, n: 38, computed_at: '2026-07-30T00:00:00Z' },
     { town: 'Hamilton', r_median: 1.15, r_p75: 1.22, n: 61, computed_at: '2026-07-30T00:00:00Z' },
+    { town: 'Beverly', r_median: 1.108, r_p75: 1.1794, n: 188, computed_at: '2026-09-05T00:00:00Z' },
   ];
   const marks = [
     { property_id: 4, nominated_by: 'Michelle' },
@@ -796,6 +812,9 @@ function loadDemo() {
     M('Hamilton', 'SAGAMORE FARM RD', { parcel_count: 11, median_lot_sqft: 108900, median_far: 0.03, far_p90: 0.05, median_year_built: 1986 }),
     M('Hamilton', 'BAY RD', { parcel_count: 88, median_lot_sqft: 21780, median_far: 0.1, far_p90: 0.16, median_year_built: 1918 }),
     M('Hamilton', 'BLUEBERRY LN', { parcel_count: 16, median_lot_sqft: 20038, median_far: 0.11, far_p90: 0.15, median_year_built: 1969 }),
+    M('Beverly', 'HASKELL ST', { parcel_count: 37, median_lot_sqft: 18295, median_far: 0.12, far_p90: 0.17, median_year_built: 1955 }),
+    M('Beverly', 'PRIDES HILL RD', { parcel_count: 9, median_lot_sqft: 48787, median_far: 0.05, far_p90: 0.08, median_year_built: 1968 }),
+    M('Beverly', 'ESSEX ST', { parcel_count: 142, median_lot_sqft: 10890, median_far: 0.19, far_p90: 0.26, median_year_built: 1948 }),
   ];
   const F = (town, street, form) => ({ town, street, form });
   const forms = [
@@ -829,6 +848,7 @@ function filtered(list) {
   const f = S.filters;
   let out = list.filter(p => {
     if (f.town && p.town !== f.town) return false;
+    if (f.nhood && f.town === 'Beverly' && p.neighborhood !== f.nhood) return false;  // Beverly-scoped carve-zone filter
     if (f.road === 'res' && isMainRoad(p)) return false;
     if (f.road === 'main' && !isMainRoad(p)) return false;
     if (f.form && (S.forms.get(skey(p))?.form || '') !== f.form) return false;
@@ -849,7 +869,7 @@ function filtered(list) {
 }
 const filtersActive = () => {
   const f = S.filters;
-  return !!(f.search || f.town || f.road || f.form || f.beds || f.year);
+  return !!(f.search || f.town || f.road || f.form || f.beds || f.year || f.nhood);
 };
 
 /* ================= card rendering ================= */
@@ -908,7 +928,7 @@ function card(p, done) {
   const verdictLabel = lv && [...LISTING_VERDICTS, ...GATE_VERDICTS].find(v => v[0] === lv.verdict)?.[1];
   const err = S.saveErrs.get(p.id);
   return `<article class="card" data-id="${p.id}">
-    <div class="card-head"><h3>${esc(displayAddr(p.address))}</h3><span class="town">${p.town}</span></div>
+    <div class="card-head"><h3>${esc(displayAddr(p.address))}</h3><span class="town">${esc(p.neighborhood || p.town)}</span></div>
     <div class="price-row">${priceRow(p)}</div>
     <p class="specs num">${p.bedrooms ?? '?'} bd · ${fmtBa(p.bathrooms)} ba · ${fmtNum(p.sqft)} sqft · ${acres(p.lot_size)?.toFixed(2) ?? '?'} ac · ${p.year_built ?? '?'}</p>
     ${tagRow(p, done)}
@@ -1024,8 +1044,9 @@ function render() {
     fs.hidden = false;
     fs.innerHTML = `<span class="num">${queue.length} of ${queueAll.length} in queue</span><button id="clear-filters">Clear filters</button>`;
   } else fs.hidden = true;
-  for (const sel of ['f-town', 'f-road', 'f-form', 'f-beds', 'f-year'])
+  for (const sel of ['f-town', 'f-nhood', 'f-road', 'f-form', 'f-beds', 'f-year'])
     $(sel).classList.toggle('active', !!$(sel).value);
+  $('f-nhood').hidden = S.filters.town !== 'Beverly';   // the neighbourhood layer exists only for Beverly
 
   const list = $('list');
   if (queue.length) {
@@ -1169,8 +1190,8 @@ document.addEventListener('click', e => {
   }
   if (t.id === 'gate-cancel') { $('gate').hidden = true; return; }
   if (t.id === 'clear-filters' || t.id === 'clear-filters-2') {
-    S.filters = { search: '', town: '', road: '', form: '', beds: '', year: '', sort: S.filters.sort };
-    for (const [id, k] of [['f-search', 'search'], ['f-town', 'town'], ['f-road', 'road'], ['f-form', 'form'], ['f-beds', 'beds'], ['f-year', 'year']])
+    S.filters = { search: '', town: '', road: '', form: '', beds: '', year: '', nhood: '', sort: S.filters.sort };
+    for (const [id, k] of [['f-search', 'search'], ['f-town', 'town'], ['f-nhood', 'nhood'], ['f-road', 'road'], ['f-form', 'form'], ['f-beds', 'beds'], ['f-year', 'year']])
       $(id).value = S.filters[k];
     render();
     return;
@@ -1217,8 +1238,12 @@ document.addEventListener('input', e => {
 });
 
 document.addEventListener('change', e => {
-  const map = { 'f-town': 'town', 'f-road': 'road', 'f-form': 'form', 'f-beds': 'beds', 'f-year': 'year', 'f-sort': 'sort' };
-  if (map[e.target.id]) { S.filters[map[e.target.id]] = e.target.value; render(); }
+  const map = { 'f-town': 'town', 'f-nhood': 'nhood', 'f-road': 'road', 'f-form': 'form', 'f-beds': 'beds', 'f-year': 'year', 'f-sort': 'sort' };
+  if (map[e.target.id]) {
+    S.filters[map[e.target.id]] = e.target.value;
+    if (e.target.id === 'f-town' && e.target.value !== 'Beverly') { S.filters.nhood = ''; $('f-nhood').value = ''; }  // leaving Beverly clears its zone filter
+    render();
+  }
 });
 
 document.addEventListener('keydown', e => {
@@ -1262,6 +1287,10 @@ async function boot() {
     const seen = [...new Set(S.props.map(p => S.forms.get(skey(p))?.form).filter(f => f && f !== 'stub'))].sort();
     $('f-form').innerHTML = '<option value="">Any street form</option>' +
       seen.map(f => `<option value="${f}">${FORM_LABELS[f] || f}</option>`).join('');
+    // Beverly's carve zones, from the rows actually loaded (the other towns have no sub-town layer)
+    const zones = [...new Set(S.props.filter(p => p.town === 'Beverly').map(p => p.neighborhood).filter(Boolean))].sort();
+    $('f-nhood').innerHTML = '<option value="">All neighborhoods</option>' +
+      zones.map(z => `<option value="${esc(z)}">${esc(z)}</option>`).join('');
     render();
   } catch (e) {
     $('list').innerHTML = `<div class="load-err"><div class="big">Couldn&rsquo;t load the watchlist</div>

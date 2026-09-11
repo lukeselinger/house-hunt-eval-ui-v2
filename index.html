@@ -341,7 +341,9 @@ html { overflow-anchor: none; }  /* we place the scroll ourselves around exits; 
    both edges ~3px and the right-aligned state slot rides along — Luke: "a
    blinking effect" while cycling. The state change is the response; press is a
    tint only (2026-09-11). */
-.hurdle:active { background: var(--well); }
+@media (hover: none) and (pointer: coarse) {   /* touch only: under a mouse the click + state change are the feedback; a tint just flashes (Luke, desktop) */
+  .hurdle:active { background: var(--well); }
+}
 .choices { display: grid; gap: 6px; }
 .choices.cols-2 { grid-template-columns: 1fr 1fr; }
 .choice {

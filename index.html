@@ -1196,15 +1196,72 @@ function updateFormControls(p) {
   if (save && !DEMO) save.disabled = !formValid(p, d);
 }
 
+// ---- form open/close, pinned under the tabs (motion brief 2, Luke 2026-09-11) ----
+// The card is the anchor: opening scrolls its header to just under the sticky
+// tabs while the form unfolds beneath it, so the house never leaves the top of
+// the screen. Closing folds the form back. Neither rebuilds the list — the
+// card node stays, so the motion has something to run on.
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+// where a card's top lands once the tabs bar is stuck: bar height + 8
+const anchorTop = () => Math.round((document.querySelector('.tabs-bar')?.offsetHeight || 0) + 8);
+function scrollCardToAnchor(card) {
+  return new Promise(res => {
+    const top = Math.max(0, Math.round(scrollY + card.getBoundingClientRect().top - anchorTop()));
+    const delta = top - scrollY;
+    if (Math.abs(delta) < 4) return res();
+    if (reduced()) { scrollTo(0, top); return res(); }
+    let done = false; const fin = () => { if (!done) { done = true; removeEventListener('scrollend', fin); res(); } };
+    addEventListener('scrollend', fin);
+    scrollTo({ top, behavior: 'smooth' });
+    setTimeout(fin, Math.min(500, 240 + Math.abs(delta) * 0.4));   // iOS has no scrollend; time scales with distance
+  });
+}
+function expandForm(f) {
+  if (reduced()) return;
+  const h = f.scrollHeight;
+  f.style.overflow = 'hidden'; f.style.height = '0'; f.style.opacity = '0'; f.style.marginTop = '0';
+  void f.offsetHeight;
+  f.style.transition = 'height 300ms var(--ease-exit), opacity 200ms var(--ease-exit), margin-top 300ms var(--ease-exit)';
+  f.style.height = h + 'px'; f.style.opacity = ''; f.style.marginTop = '';
+  const clear = () => { f.style.transition = ''; f.style.height = ''; f.style.overflow = ''; };
+  f.addEventListener('transitionend', e => { if (e.target === f && e.propertyName === 'height') clear(); });
+  setTimeout(clear, 400);
+}
+function collapseForm(f, then) {
+  if (reduced()) { f.remove(); then?.(); return; }
+  let done = false; const fin = () => { if (!done) { done = true; f.remove(); then?.(); } };
+  f.style.height = f.offsetHeight + 'px'; f.style.overflow = 'hidden';
+  void f.offsetHeight;
+  f.style.transition = 'height 250ms var(--ease-exit), opacity 150ms var(--ease-exit), margin-top 250ms var(--ease-exit)';
+  f.style.height = '0'; f.style.opacity = '0'; f.style.marginTop = '0';
+  f.addEventListener('transitionend', e => { if (e.target === f && e.propertyName === 'height') fin(); });
+  setTimeout(fin, 350);
+}
+function setOpenButton(card, p, open) {
+  const b = card.querySelector('.eval-open'); if (!b) return;
+  const done = card.parentElement?.id === 'done-list';
+  b.classList.toggle('reopen', open || done);
+  b.textContent = open ? 'Close' : done ? 'Evaluate again' : (p.on_market === true ? 'Evaluate' : 'Gate check');
+}
 function toggleForm(id) {
   const p = S.props.find(x => x.id === id);
   if (!p) return;
-  if (S.open.has(id)) S.open.delete(id);
-  else { S.open.add(id); S.saveErrs.delete(id); }
-  render();
+  const card = document.querySelector(`.card[data-id="${id}"]`);
+  if (!card) { if (S.open.has(id)) S.open.delete(id); else S.open.add(id); render(); return; }
   if (S.open.has(id)) {
-    const f = document.querySelector(`[data-form="${id}"]`);
-    if (f) { f.focus({ preventScroll: true }); f.scrollIntoView({ block: 'nearest' }); }
+    S.open.delete(id);
+    setOpenButton(card, p, false);
+    const f = card.querySelector('.eval-form');
+    if (f) collapseForm(f); else render();
+    card.querySelector('.eval-open')?.focus({ preventScroll: true });
+  } else {
+    S.open.add(id); S.saveErrs.delete(id);
+    card.querySelector('.save-err')?.remove();
+    setOpenButton(card, p, true);
+    card.insertAdjacentHTML('beforeend', formHtml(p));
+    const f = card.querySelector('.eval-form');
+    expandForm(f);
+    scrollCardToAnchor(card).then(() => f.focus({ preventScroll: true }));
   }
 }
 
@@ -1219,12 +1276,15 @@ function exitCard(card, then) {
   let done = false;
   const finish = () => { if (!done) { done = true; card.remove(); then(); } };   // gone before the re-render, so the patch path can't keep it
   card.classList.add('exiting');
-  card.style.height = card.offsetHeight + 'px';   // pin, then collapse
+  const h = card.offsetHeight;
+  const dur = Math.round(Math.min(450, Math.max(300, h * 0.3)));   // a taller card takes longer to leave (feel-iteration 2)
+  const fade = Math.round(dur * 0.6);
+  card.style.height = h + 'px';                    // pin, then collapse
   card.style.overflow = 'hidden';
   void card.offsetHeight;                          // flush: the pin must be the computed 'from'
-  card.style.transition = 'opacity 150ms var(--ease-exit), transform 150ms var(--ease-exit),' +
-    ' height 300ms var(--ease-exit), margin-bottom 300ms var(--ease-exit),' +
-    ' padding-top 300ms var(--ease-exit), padding-bottom 300ms var(--ease-exit)';
+  card.style.transition = `opacity ${fade}ms var(--ease-exit), transform ${fade}ms var(--ease-exit),` +
+    ` height ${dur}ms var(--ease-exit), margin-bottom ${dur}ms var(--ease-exit),` +
+    ` padding-top ${dur}ms var(--ease-exit), padding-bottom ${dur}ms var(--ease-exit)`;
   card.style.opacity = '0';
   card.style.transform = 'scale(0.98)';
   card.style.height = '0';
@@ -1234,7 +1294,7 @@ function exitCard(card, then) {
   card.addEventListener('transitionend', e => {    // only the longest transition may finish it
     if (e.target === card && e.propertyName === 'height') finish();
   });
-  setTimeout(finish, 450);                         // hard fallback: the queue never sticks
+  setTimeout(finish, dur + 150);                   // hard fallback: the queue never sticks
 }
 // A failed save brings the card back the way it left (mirror, shorter).
 function enterCard(card) {
@@ -1277,6 +1337,8 @@ async function save(id) {
     // remember where the saved card sat so focus can land on its successor
     const idx = [...$('list').children].indexOf(el);
     S.exiting++;
+    el.classList.add('exiting');                   // input falls through from the tap onward
+    await scrollCardToAnchor(el);                  // the camera first: you watch the card you judged leave
     exitCard(el, () => {
       S.exiting--;
       if (S.exiting !== 0) return;

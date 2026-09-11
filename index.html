@@ -120,7 +120,14 @@ a { color: var(--accent-strong); text-decoration-thickness: from-font; text-unde
 .num { font-variant-numeric: tabular-nums; }
 .no-transitions *, .no-transitions { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; animation: none !important; }
+  /* Gentler, not zero (2026-09-11): opacity and colour may still ease; nothing
+     may move or resize. Restricting transition-property keeps each rule's own
+     durations for the allowed properties and drops transform/height/margin. */
+  *, *::before, *::after {
+    transition-property: opacity, background-color, color, border-color, box-shadow !important;
+    animation: none !important;
+  }
+  :active { transform: none !important; }   /* press feedback is movement */
 }
 
 /* ---------- header ---------- */
@@ -1210,6 +1217,12 @@ function updateFormControls(p) {
 // the screen. Closing folds the form back. Neither rebuilds the list — the
 // card node stays, so the motion has something to run on.
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Reduced-motion fade: opacity only, via WAAPI (unaffected by the CSS rule above).
+const fadeTo = (el, to, ms = 150) => {
+  el.getAnimations().forEach(a => a.cancel());
+  const from = +getComputedStyle(el).opacity;
+  return el.animate([{ opacity: from }, { opacity: to }], { duration: ms, easing: 'ease-out', fill: 'forwards' }).finished.catch(() => {});
+};
 // where a card's top lands once the tabs bar is stuck: bar height + 8
 const anchorTop = () => Math.round((document.querySelector('.tabs-bar')?.offsetHeight || 0) + 8);
 // After a layout change we placed ourselves (an exit), put an element's top on
@@ -1246,7 +1259,7 @@ function scrollCardToAnchor(card) {
   });
 }
 function expandForm(f) {
-  if (reduced()) return null;
+  if (reduced()) { f.style.opacity = '0'; fadeTo(f, 1).then(() => { f.style.opacity = ''; }); return null; }   // appears at full size, eases in
   const h = f.scrollHeight;
   const list = f.closest('.list');
   if (list) list.style.paddingBottom = (12 + h) + 'px';   // reserve the room now so the pan to the anchor isn't clamped by the pre-growth page height
@@ -1263,7 +1276,7 @@ function expandForm(f) {
 }
 function reviveForm(f) {                        // reopen tapped mid-fold: retarget, don't re-insert
   f.__revived = true;
-  if (reduced()) { f.style.cssText = ''; return; }
+  if (reduced()) { f.style.cssText = ''; fadeTo(f, 1); return; }
   const h = f.scrollHeight;
   f.style.transition = 'height 300ms var(--ease-exit), opacity 200ms var(--ease-exit), margin-top 300ms var(--ease-exit)';
   f.style.height = h + 'px'; f.style.opacity = ''; f.style.marginTop = '';
@@ -1273,7 +1286,7 @@ function reviveForm(f) {                        // reopen tapped mid-fold: retar
 }
 function collapseForm(f, then) {
   f.__revived = false;
-  if (reduced()) { f.remove(); then?.(); return; }
+  if (reduced()) { fadeTo(f, 0).then(() => { if (!f.__revived) { f.remove(); then?.(); } }); return; }
   let done = false; const fin = () => { if (!done) { done = true; if (f.__revived) return; f.remove(); then?.(); } };
   f.style.height = f.offsetHeight + 'px'; f.style.overflow = 'hidden';
   void f.offsetHeight;
@@ -1318,7 +1331,8 @@ function toggleForm(id) {
 // (brief-backed deviation from transform/opacity-only): the collapse IS the
 // message — where the list closed.
 function exitCard(card, then, prefaded) {
-  if (!card || matchMedia('(prefers-reduced-motion: reduce)').matches) { then(); return; }
+  if (!card) { then(); return; }
+  if (reduced()) { card.classList.add('exiting'); fadeTo(card, 0).then(() => { card.remove(); then(); }); return; }   // fade, then the slot closes at once
   let done = false;
   const finish = () => { if (!done) { done = true; card.remove(); then(); } };   // gone before the re-render, so the patch path can't keep it
   card.classList.add('exiting');
@@ -1343,7 +1357,8 @@ function exitCard(card, then, prefaded) {
 }
 // A failed save brings the card back the way it left (mirror, shorter).
 function enterCard(card) {
-  if (!card || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!card) return;
+  if (reduced()) { card.style.opacity = '0'; fadeTo(card, 1).then(() => { card.style.opacity = ''; }); return; }
   const h = card.offsetHeight;
   card.style.overflow = 'hidden';
   card.style.height = '0'; card.style.opacity = '0'; card.style.paddingTop = '0'; card.style.paddingBottom = '0';

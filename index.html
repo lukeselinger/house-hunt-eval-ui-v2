@@ -326,7 +326,7 @@ html { overflow-anchor: none; }  /* we place the scroll ourselves around exits; 
   box-shadow: inset 0 0 0 1px var(--line);
   font-size: 0.9375rem;
   text-align: left;
-  transition: box-shadow 150ms ease, transform 100ms ease;
+  transition: box-shadow 150ms ease, background-color 100ms ease;
 }
 .hurdle .hname { margin-right: auto; }
 .hurdle .hstate {
@@ -337,7 +337,11 @@ html { overflow-anchor: none; }  /* we place the scroll ourselves around exits; 
 }
 .hurdle[data-state="pass"] .hstate { background: var(--good-tint); color: var(--good-fg); }
 .hurdle[data-state="fail"] .hstate { background: var(--bad-tint); color: var(--bad-fg); }
-.hurdle:active { transform: scale(0.98); }   /* full-width row */
+/* Press on a hurdle row: felt, not seen. A 2% scale on a screen-wide row moves
+   both edges ~3px and the right-aligned state slot rides along — Luke: "a
+   blinking effect" while cycling. The state change is the response; press is a
+   tint only (2026-09-11). */
+.hurdle:active { background: var(--well); }
 .choices { display: grid; gap: 6px; }
 .choices.cols-2 { grid-template-columns: 1fr 1fr; }
 .choice {

@@ -595,6 +595,12 @@ const SUPA_URL = 'https://ivqotvufsdiultnhbdxc.supabase.co';
 const BAKED_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2cW90dnVmc2RpdWx0bmhiZHhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MDkyODksImV4cCI6MjA5NjQ4NTI4OX0.kgYnKuk6IekYJY66sLyddFk2IddWzBeR5W5VccxbZgM';
 const BAKED_CEILING = '1300000';
 const DEMO = new URLSearchParams(location.search).has('demo');
+// ?as=Luke|Michelle — act as a profile for this page load without touching
+// localStorage (the deploy probe uses it); ?probe=1 — write a JSON summary of
+// the rendered list into #probe-summary after every render (see probe.py).
+const AS = new URLSearchParams(location.search).get('as');
+const PROBE = new URLSearchParams(location.search).has('probe');
+if (PROBE) window.addEventListener('error', e => (window.__probeErrors ||= []).push(String(e.message)));
 const TOWNS = ['Wenham', 'Hamilton', 'Beverly'];
 // Per-town watchlist predicate (2026-09-04 Beverly ratification,
 // house-hunt-beverly-spike.md): Wenham/Hamilton are whole-town in-target;
@@ -645,7 +651,7 @@ function ceiling() {
 
 /* ================= state ================= */
 const S = {
-  profile: localStorage.getItem('hh2-profile') || null,
+  profile: (['Luke', 'Michelle'].includes(AS) ? AS : null) || localStorage.getItem('hh2-profile') || null,
   view: 'off',
   props: [],                 // enriched property rows
   ratios: {},                // town -> latest ratio row
@@ -705,12 +711,22 @@ function toast(msg, isErr) {
 }
 
 /* ================= data ================= */
+// PostgREST caps a response at 1000 rows and says nothing — Beverly's 975
+// streets silently starved Wenham/Hamilton of street metrics (2026-09-11).
+// So every query pages until a short page comes back. Callers pass a stable
+// `order` so pages don't overlap.
+const PAGE = 1000;
 async function api(path, params) {
   const key = anonKey();
-  const url = `${SUPA_URL}/rest/v1/${path}?` + new URLSearchParams(params);
-  const r = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
-  if (!r.ok) throw new Error(`${path} → HTTP ${r.status}`);
-  return r.json();
+  const out = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const url = `${SUPA_URL}/rest/v1/${path}?` + new URLSearchParams({ ...params, limit: PAGE, offset });
+    const r = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+    if (!r.ok) throw new Error(`${path} → HTTP ${r.status}`);
+    const page = await r.json();
+    out.push(...page);
+    if (page.length < PAGE) return out;
+  }
 }
 
 function tenureCutoff() {
@@ -729,13 +745,13 @@ async function loadLive() {
       town: `in.(${TOWNS})`, order: 'computed_at.desc',
       select: 'town,r_median,r_p75,n,computed_at',
     }),
-    api('listing_events', { event: 'eq.sold', select: 'property_id' }),
-    api('eval_marks', { select: 'property_id,nominated_by' }),
+    api('listing_events', { event: 'eq.sold', select: 'property_id', order: 'property_id' }),
+    api('eval_marks', { select: 'property_id,nominated_by', order: 'property_id' }),
     api('street_metrics', {
-      town: `in.(${TOWNS})`,
+      town: `in.(${TOWNS})`, order: 'town,street',
       select: 'town,street,parcel_count,median_lot_sqft,median_far,far_p90,median_year_built',
     }),
-    api('street_forms', { town: `in.(${TOWNS})`, select: 'town,street,form,terminus,length_m' }),
+    api('street_forms', { town: `in.(${TOWNS})`, order: 'town,street', select: 'town,street,form,terminus,length_m' }),
     Promise.all(TOWNS.map(t => api('properties', {
       town: `eq.${t}`,
       ...TOWN_PREDICATE(t),
@@ -743,7 +759,7 @@ async function loadLive() {
       last_sale_price: 'gt.100000',
       last_sale_date: `lt.${tenureCutoff()}`,
       price_estimate: `lte.${CEIL}`,
-      order: 'price_estimate.asc',
+      order: 'price_estimate.asc,id',
       select: 'id,address,town,neighborhood,year_built,sqft,bedrooms,bathrooms,building_style,lot_size,' +
               'assessed_value,price_estimate,last_sale_date,last_sale_price,on_market,road_fclass,road_aadt',
     }))).then(byTown => byTown.flat()),
@@ -757,7 +773,7 @@ async function loadLive() {
   if (onIds.length) {
     events = await api('listing_events', {
       property_id: `in.(${onIds})`,
-      order: 'observed_on.asc',
+      order: 'observed_on.asc,property_id',
       select: 'property_id,event,list_price,observed_on',
     });
   }
@@ -944,7 +960,7 @@ function card(p, done) {
   const verdictLabel = lv && [...LISTING_VERDICTS, ...GATE_VERDICTS].find(v => v[0] === lv.verdict)?.[1];
   const err = S.saveErrs.get(p.id);
   return `<article class="card" data-id="${p.id}">
-    <div class="card-head"><h3>${esc(displayAddr(p.address))}</h3><span class="town">${esc(p.neighborhood || p.town)}</span></div>
+    <div class="card-head"><h3>${esc(displayAddr(p.address))}</h3><span class="town">${p.town}</span></div>
     <div class="price-row">${priceRow(p)}</div>
     <p class="specs num"><span>${p.bedrooms ?? '?'}bd · ${fmtBa(p.bathrooms)}ba</span><span>${fmtNum(p.sqft)} sqft</span><span>${acres(p.lot_size)?.toFixed(2) ?? '?'} ac</span><span>${p.year_built ?? '?'}</span><span>${ten != null ? ten + ' yr' : '—'}</span></p>
     ${tagRow(p, done)}
@@ -1031,6 +1047,39 @@ function formValid(p, d) {
 }
 
 /* ================= render ================= */
+// Deploy probe: what the rendered list actually contains, per town — labels,
+// street-line coverage, tag kinds, unknown cells — so a deploy is compared to
+// the previous one mechanically instead of by eye (2026-09-11, after two data
+// regressions shipped past hand verification).
+function writeProbe() {
+  const byTown = {};
+  for (const c of $('list').querySelectorAll('.card')) {
+    const p = S.props.find(x => x.id === +c.dataset.id); if (!p) continue;
+    const b = byTown[p.town] ||= { cards: 0, labels: new Set(), streetLines: 0, tagKinds: new Set(), unknownCells: 0, nullBeds: 0 };
+    b.cards++;
+    b.labels.add(c.querySelector('.card-head .town')?.textContent.trim());
+    if (c.querySelector('.street-line')) b.streetLines++;
+    for (const t of c.querySelectorAll('.tag')) b.tagKinds.add(t.textContent.replace(/[\d,.]+k?\/day|✓/g, '').replace(/[·\s]+$/, '').trim());
+    b.unknownCells += [...c.querySelectorAll('.specs span')].filter(x => x.textContent.includes('?')).length;
+    if (p.bedrooms == null) b.nullBeds++;
+  }
+  for (const t in byTown) {
+    const b = byTown[t];
+    b.labels = [...b.labels].sort(); b.tagKinds = [...b.tagKinds].sort();
+    b.streetLineRate = +(b.streetLines / b.cards).toFixed(3); delete b.streetLines;
+  }
+  const summary = {
+    at: new Date().toISOString(), url: location.href, profile: S.profile, view: S.view,
+    cards: $('list').querySelectorAll('.card').length, done: +($('done-label').textContent.match(/\d+/)?.[0] || 0),
+    ratios: Object.fromEntries(Object.entries(S.ratios).map(([t, r]) => [t, +r.r_median])),
+    streetKeys: Object.fromEntries(TOWNS.map(t => [t, [...S.streets.keys()].filter(k => k.startsWith(t + '|')).length])),
+    byTown, errors: window.__probeErrors || [],
+  };
+  let el = document.getElementById('probe-summary');
+  if (!el) { el = document.createElement('script'); el.type = 'application/json'; el.id = 'probe-summary'; document.body.appendChild(el); }
+  el.textContent = JSON.stringify(summary);
+}
+
 function render() {
   $('profile-btn').hidden = !S.profile;
   if (S.profile) {
@@ -1108,6 +1157,7 @@ function render() {
   $('foot').innerHTML = `Estimates = assessed × R, latest per town (${r}${rDate ? `, computed ${rDate}` : ''}).
     Budget ceiling ${moneyFull(S.ceiling)}. In budget = within the ceiling even at p75 R; borderline = within at median R only.
     Street context is informative only — it never filters anything by itself.`;
+  if (PROBE) writeProbe();
 }
 
 function renderSkeleton() {

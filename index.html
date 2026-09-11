@@ -116,6 +116,7 @@ button {
 [hidden] { display: none !important; }
 a { color: var(--accent-strong); text-decoration-thickness: from-font; text-underline-offset: 2px; }
 .wrap { max-width: 640px; margin-inline: auto; padding-inline: 16px; }
+.wrap.content { padding-bottom: 50vh; }  /* room below the list so the last card can still be pinned under the tabs */
 .num { font-variant-numeric: tabular-nums; }
 .no-transitions *, .no-transitions { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
@@ -217,7 +218,8 @@ input[type="search"]:focus { border-color: var(--accent); outline: none; box-sha
 .filter-summary button { color: var(--accent-strong); font-size: 0.8125rem; font-weight: 500; min-height: 44px; }
 
 /* ---------- cards ---------- */
-.list { display: flex; flex-direction: column; gap: 12px; padding-block: 12px; }  /* flex, not grid: a departing card collapses its own slot via negative margin */
+.list { display: flex; flex-direction: column; gap: 12px; padding-block: 12px; }
+html { overflow-anchor: none; }  /* we place the scroll ourselves around exits; the browser's re-anchoring fights that */  /* flex, not grid: a departing card collapses its own slot via negative margin */
 .card.exiting { pointer-events: none; }   /* the exit never gates input: taps fall through to what's beneath */
 .card {
   background: var(--card);
@@ -511,7 +513,7 @@ footer {
     </div>
   </div>
 </div>
-<div class="wrap">
+<div class="wrap content">
   <div class="filters" id="filters" hidden>
     <div class="search-row">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -1204,6 +1206,17 @@ function updateFormControls(p) {
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 // where a card's top lands once the tabs bar is stuck: bar height + 8
 const anchorTop = () => Math.round((document.querySelector('.tabs-bar')?.offsetHeight || 0) + 8);
+// After a layout change we placed ourselves (an exit), put an element's top on
+// the anchor and hold it there for a few frames while the browser settles.
+function pinToAnchor(el) {
+  let n = 0;
+  const step = () => {
+    const off = Math.round(el.getBoundingClientRect().top - anchorTop());
+    if (Math.abs(off) > 1) scrollTo(0, Math.max(0, scrollY + off));
+    if (++n < 4) requestAnimationFrame(step);
+  };
+  step();
+}
 function scrollCardToAnchor(card) {
   return new Promise(res => {
     const top = Math.max(0, Math.round(scrollY + card.getBoundingClientRect().top - anchorTop()));
@@ -1213,12 +1226,24 @@ function scrollCardToAnchor(card) {
     let done = false; const fin = () => { if (!done) { done = true; removeEventListener('scrollend', fin); res(); } };
     addEventListener('scrollend', fin);
     scrollTo({ top, behavior: 'smooth' });
-    setTimeout(fin, Math.min(500, 240 + Math.abs(delta) * 0.4));   // iOS has no scrollend; time scales with distance
+    // iOS has no scrollend: watch scrollY and resolve once it has settled
+    // (unchanged for 3 frames after it started moving), hard cap 900ms.
+    const t0 = performance.now(); let last = scrollY, still = 0, moved = false;
+    const tick = () => {
+      if (done) return;
+      const y = scrollY; if (y !== last) { moved = true; still = 0; } else still++;
+      last = y;
+      if ((moved && still >= 3) || (!moved && performance.now() - t0 > 150) || performance.now() - t0 > 900) return fin();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   });
 }
 function expandForm(f) {
-  if (reduced()) return;
+  if (reduced()) return null;
   const h = f.scrollHeight;
+  const list = f.closest('.list');
+  if (list) list.style.paddingBottom = (12 + h) + 'px';   // reserve the room now so the pan to the anchor isn't clamped by the pre-growth page height
   f.style.overflow = 'hidden'; f.style.height = '0'; f.style.opacity = '0'; f.style.marginTop = '0';
   void f.offsetHeight;
   f.style.transition = 'height 300ms var(--ease-exit), opacity 200ms var(--ease-exit), margin-top 300ms var(--ease-exit)';
@@ -1226,10 +1251,24 @@ function expandForm(f) {
   const clear = () => { f.style.transition = ''; f.style.height = ''; f.style.overflow = ''; };
   f.addEventListener('transitionend', e => { if (e.target === f && e.propertyName === 'height') clear(); });
   setTimeout(clear, 400);
+  // the reserve is released only once the pan has settled — shrinking the page
+  // mid-scroll cuts a smooth scroll short (measured: 62px early on the last card)
+  return () => { if (list) list.style.paddingBottom = ''; };
+}
+function reviveForm(f) {                        // reopen tapped mid-fold: retarget, don't re-insert
+  f.__revived = true;
+  if (reduced()) { f.style.cssText = ''; return; }
+  const h = f.scrollHeight;
+  f.style.transition = 'height 300ms var(--ease-exit), opacity 200ms var(--ease-exit), margin-top 300ms var(--ease-exit)';
+  f.style.height = h + 'px'; f.style.opacity = ''; f.style.marginTop = '';
+  const clear = () => { if (!f.__revived) return; f.style.transition = ''; f.style.height = ''; f.style.overflow = ''; };
+  f.addEventListener('transitionend', e => { if (e.target === f && e.propertyName === 'height') clear(); });
+  setTimeout(clear, 400);
 }
 function collapseForm(f, then) {
+  f.__revived = false;
   if (reduced()) { f.remove(); then?.(); return; }
-  let done = false; const fin = () => { if (!done) { done = true; f.remove(); then?.(); } };
+  let done = false; const fin = () => { if (!done) { done = true; if (f.__revived) return; f.remove(); then?.(); } };
   f.style.height = f.offsetHeight + 'px'; f.style.overflow = 'hidden';
   void f.offsetHeight;
   f.style.transition = 'height 250ms var(--ease-exit), opacity 150ms var(--ease-exit), margin-top 250ms var(--ease-exit)';
@@ -1258,10 +1297,11 @@ function toggleForm(id) {
     S.open.add(id); S.saveErrs.delete(id);
     card.querySelector('.save-err')?.remove();
     setOpenButton(card, p, true);
-    card.insertAdjacentHTML('beforeend', formHtml(p));
-    const f = card.querySelector('.eval-form');
-    expandForm(f);
-    scrollCardToAnchor(card).then(() => f.focus({ preventScroll: true }));
+    let f = card.querySelector('.eval-form');
+    let release = null;
+    if (f) reviveForm(f);                          // still folding from a Close a moment ago
+    else { card.insertAdjacentHTML('beforeend', formHtml(p)); f = card.querySelector('.eval-form'); release = expandForm(f); }
+    scrollCardToAnchor(card).then(() => { release?.(); f.focus({ preventScroll: true }); });
   }
 }
 
@@ -1343,11 +1383,11 @@ async function save(id) {
       S.exiting--;
       if (S.exiting !== 0) return;
       render();
-      if (document.activeElement === document.body) {        // focus died with the card (keyboard flow, a11y floor)
-        const cards = $('list').querySelectorAll('.card');
-        const next = cards[Math.min(idx, cards.length - 1)];
+      const cards = $('list').querySelectorAll('.card');
+      const next = cards[Math.min(idx, cards.length - 1)];
+      if (next) pinToAnchor(next);                           // land on the successor, pinned under the tabs
+      if (document.activeElement === document.body)          // focus died with the card (keyboard flow, a11y floor)
         next?.querySelector('.eval-open')?.focus({ preventScroll: true });
-      }
     });
   } else render();
   try {

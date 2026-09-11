@@ -1377,13 +1377,12 @@ async function save(id) {
     const idx = [...$('list').children].indexOf(el);
     S.exiting++;
     el.classList.add('exiting');                   // input falls through from the tap onward
-    // the card starts fading as the camera pans to it (feel-iteration 3: one departure, not pan-then-collapse)
-    const prefaded = !reduced();
-    if (prefaded) {
-      el.style.transition = 'opacity 250ms var(--ease-exit), transform 250ms var(--ease-exit)';
-      el.style.opacity = '0'; el.style.transform = 'scale(0.98)';
-    }
-    await scrollCardToAnchor(el);                  // then the slot closes from the anchor
+    // Feel-iteration 3 tried fading the card during the pan; Luke: a faded
+    // screen-tall card is a blank page for the whole pan ("too much is
+    // happening"). The card stays visible while the camera comes to it, and
+    // fades as its slot closes — the motion serves the landing, not itself.
+    const prefaded = false;
+    await scrollCardToAnchor(el);                  // the camera first: you watch the card you judged leave
     exitCard(el, () => {
       S.exiting--;
       if (S.exiting !== 0) return;

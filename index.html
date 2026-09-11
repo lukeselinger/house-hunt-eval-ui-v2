@@ -50,7 +50,11 @@
   --z-sticky: 100;
   --z-screen: 200;
   --z-toast: 400;
-  --ease-exit: cubic-bezier(0.19, 1, 0.22, 1);   /* strong ease-out; the saved-card exit (motion brief 2026-09-11) */
+  /* saved-card exit curve. Feel-iteration 1 (Luke, 2026-09-11: "way too fast,
+     I just saw the list jump"): the expo curve (0.19,1,0.22,1) put ~90% of a
+     600-900px collapse into the first 90ms. Quad ease-out spreads it across
+     the full 300ms — same durations, only the easing changed. */
+  --ease-exit: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 @media (min-resolution: 192dpi) {
   :root { --border-hairline: 0.5px; }

@@ -228,7 +228,12 @@ input[type="search"]:focus { border-color: var(--accent); outline: none; box-sha
 .price { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.01em; }
 .price-sub { font-size: 0.8125rem; color: var(--ink-2); }
 .cut { font-size: 0.8125rem; color: var(--good-fg); font-weight: 500; }
-.specs { margin: 6px 0 0; font-size: 0.875rem; color: var(--ink-2); }
+.specs { margin: 6px 0 0; font-size: 0.875rem; color: var(--ink-2);
+  /* B2 trial: the same figure sits in the same column on every card (comparison
+     machinery); labels subtracted — units self-identify. Fixed column floors so
+     cards align; max-content lets a long value spill into its gap, not wrap. */
+  display: grid; column-gap: 6px; white-space: nowrap;
+  grid-template-columns: minmax(8.5ch, max-content) minmax(8.5ch, max-content) minmax(6ch, max-content) minmax(4ch, max-content) minmax(4.5ch, max-content); }
 .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .tag {
   font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
@@ -614,6 +619,7 @@ const LISTING_VERDICTS = [
   ['pass-on-location-only', 'Pass on location only'],
 ];
 const AXES = ['house', 'location', 'price', 'condition', 'none'];
+const AXIS_LABEL = { house: 'House', location: 'Location', price: 'Price', condition: 'Condition', none: 'None' };
 const FORM_LABELS = {
   cul_de_sac: 'cul-de-sac', stub: 'stub', country_dead_end: 'country dead end',
   loop: 'loop', curved_subdivision: 'curved subdivision', grid: 'grid',
@@ -659,6 +665,7 @@ const money = n => n == null ? '—'
 const moneyFull = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('en-US');
 const fmtNum = n => n == null ? '?' : n.toLocaleString('en-US');
 const fmtBa = b => b == null ? '?' : String(+(+b).toFixed(1)).replace(/\.0$/, '');
+const fmtK = n => n == null ? '?' : n >= 1000 ? Math.round(n / 1000) + 'k' : String(n);   // estimates read as estimates (AADT is modelled)
 const acres = sqft => sqft ? sqft / 43560 : null;
 const shortDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 // Assessor form -> reading form ('186 TOPSFIELD RD' -> '186 Topsfield Rd')
@@ -876,9 +883,9 @@ const filtersActive = () => {
 function tagRow(p, done) {
   const tags = [];
   const t = tier(p);
-  if (t === 'in') tags.push('<span class="tag tier-in">In band</span>');
-  if (t === 'watch') tags.push('<span class="tag">Watch</span>');
-  if (isMainRoad(p)) tags.push(`<span class="tag warn">Main rd${p.road_aadt ? ' · ' + fmtNum(p.road_aadt) + '/day' : ''}</span>`);
+  if (t === 'in') tags.push('<span class="tag tier-in">In budget</span>');
+  if (t === 'watch') tags.push('<span class="tag">Borderline</span>');
+  if (isMainRoad(p)) tags.push(`<span class="tag warn">Main rd${p.road_aadt ? ' · ' + fmtK(p.road_aadt) + '/day' : ''}</span>`);
   const ac = acres(p.lot_size);
   if (ac != null && ac < 0.30) tags.push('<span class="tag">Small lot</span>');
   const sm = S.streets.get(skey(p));
@@ -894,12 +901,12 @@ function streetLine(p) {
   const sm = S.streets.get(skey(p));
   if (!sm) return '';
   const sf = S.forms.get(skey(p));
-  const bits = [`<b>${esc(displayAddr(sm.street))}</b>`];
+  const bits = [];
   if (sf && sf.form !== 'stub') bits.push(esc(FORM_LABELS[sf.form] || sf.form)); // stub carries no signal
   bits.push(`${sm.parcel_count} lots`);
   if (sm.median_lot_sqft) bits.push(`${(sm.median_lot_sqft / 43560).toFixed(2)} ac median`);
   if (sm.median_far != null) bits.push(`FAR ${(+sm.median_far).toFixed(2)}`);
-  return `<p class="street-line num">${bits.join(' · ')}</p>`;
+  return `<p class="street-line num">Street: ${bits.join(' · ')}</p>`;
 }
 
 function priceRow(p) {
@@ -930,10 +937,10 @@ function card(p, done) {
   return `<article class="card" data-id="${p.id}">
     <div class="card-head"><h3>${esc(displayAddr(p.address))}</h3><span class="town">${esc(p.neighborhood || p.town)}</span></div>
     <div class="price-row">${priceRow(p)}</div>
-    <p class="specs num">${p.bedrooms ?? '?'} bd · ${fmtBa(p.bathrooms)} ba · ${fmtNum(p.sqft)} sqft · ${acres(p.lot_size)?.toFixed(2) ?? '?'} ac · ${p.year_built ?? '?'}</p>
+    <p class="specs num"><span>${p.bedrooms ?? '?'}bd · ${fmtBa(p.bathrooms)}ba</span><span>${fmtNum(p.sqft)} sqft</span><span>${acres(p.lot_size)?.toFixed(2) ?? '?'} ac</span><span>${p.year_built ?? '?'}</span><span>${ten != null ? ten + ' yr' : '—'}</span></p>
     ${tagRow(p, done)}
     ${streetLine(p)}
-    <p class="hist-line num">Assessed ${money(p.assessed_value)}${saleYr ? ` · sold ${saleYr} for ${money(p.last_sale_price)}` : ''}${ten != null ? ` · ${ten} yr tenure` : ''}</p>
+    <p class="hist-line num">Assessed ${money(p.assessed_value)}${saleYr ? ` · sold ${saleYr} for ${money(p.last_sale_price)}` : ''}</p>
     ${done && verdictLabel ? `<p class="done-verdict">You said: <b>${verdictLabel}</b>${lv.at ? ' · ' + shortDate(lv.at) : ''}</p>` : ''}
     ${err ? `<div class="save-err">Save failed — ${esc(err)}. Your draft is kept below.</div>` : ''}
     <div class="card-foot">
@@ -990,17 +997,17 @@ function formHtml(p) {
       AXES.map(a => {
         const i = d.axes.indexOf(a);
         return `<button class="choice ax-btn" aria-pressed="${i >= 0}" data-a="${a}">${
-          i >= 0 && a !== 'none' && d.axes.filter(x => x !== 'none').length > 1 ? `<span class="ord num">${i + 1}</span>` : ''}${a}</button>`;
+          i >= 0 && a !== 'none' && d.axes.filter(x => x !== 'none').length > 1 ? `<span class="ord num">${i + 1}</span>` : ''}${AXIS_LABEL[a]}</button>`;
       }).join('') + '</div></div>';
   }
   const textLabel = onMkt ? 'Your words' : 'Note';
-  const hint = onMkt ? 'Required — the verbatim reasoning is the record.' : 'Optional.';
+  const hint = onMkt ? 'Required — verbatim. This is the asset.' : 'Optional — anything worth remembering from Street View.';
   inner += `<div class="field"><label class="flabel" for="txt-${p.id}">${textLabel}</label>
     <textarea id="txt-${p.id}" rows="3" autocapitalize="sentences">${esc(d.text)}</textarea>
     <p class="fhint">${hint}</p></div>`;
   const valid = formValid(p, d);
   inner += `<div class="save-row"><button class="save-btn" data-id="${p.id}" ${valid && !DEMO ? '' : 'disabled'}>${
-    DEMO ? 'Saving disabled in demo' : onMkt ? 'Save evaluation' : 'Save gate check'}</button></div>`;
+    DEMO ? 'Saving disabled in demo' : `Save as ${esc(S.profile)}`}</button></div>`;
   return `<div class="eval-form" tabindex="-1" data-form="${p.id}">
     <div class="form-title"><h4>${title} — ${S.profile}</h4>
       <button class="form-close" data-id="${p.id}" aria-label="Close form, keep draft">
@@ -1069,7 +1076,7 @@ function render() {
   const r = TOWNS.map(t => S.ratios[t] ? `${t} R ${(+S.ratios[t].r_median).toFixed(2)}` : null).filter(Boolean).join(' · ');
   const rDate = S.ratios[TOWNS[0]]?.computed_at?.slice(0, 10);
   $('foot').innerHTML = `Estimates = assessed × R, latest per town (${r}${rDate ? `, computed ${rDate}` : ''}).
-    Band ceiling ${moneyFull(S.ceiling)}. In band = within ceiling even at p75 R; watch = within at median only.
+    Budget ceiling ${moneyFull(S.ceiling)}. In budget = within the ceiling even at p75 R; borderline = within at median R only.
     Street context is informative only — it never filters anything by itself.`;
 }
 

@@ -117,6 +117,7 @@ button {
 a { color: var(--accent-strong); text-decoration-thickness: from-font; text-underline-offset: 2px; }
 .wrap { max-width: 640px; margin-inline: auto; padding-inline: 16px; }
 .wrap.content { padding-bottom: 50vh; }  /* room below the list so the last card can still be pinned under the tabs */
+.wrap.content.page-mode { padding-bottom: 24px; }   /* the shortlist and house pages pin nothing */
 .num { font-variant-numeric: tabular-nums; }
 .no-transitions *, .no-transitions { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
@@ -165,7 +166,7 @@ a { color: var(--accent-strong); text-decoration-thickness: from-font; text-unde
 .tab {
   flex: 1;
   min-height: 48px;
-  font-size: 0.9375rem; font-weight: 600;
+  font-size: 0.875rem; font-weight: 600;   /* 15 -> 14 (2026-09-14): three tabs with live counts ("Off market 292") overflowed a 360px phone at 15 */
   color: var(--ink-3);
   border-bottom: 2px solid transparent;
   transition: color 150ms ease, border-color 150ms ease;
@@ -411,6 +412,81 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
   display: flex; align-items: center; gap: 6px;
 }
 
+/* ---------- shortlist + house pages (2026-09-14) ---------- */
+.page { padding-block: 16px 0; }
+.page-head h2 { margin: 0; font-size: 1.25rem; font-weight: 650; letter-spacing: -0.01em; line-height: 1.3; }
+.page-head h2 .count { font-weight: 500; color: var(--ink-3); margin-left: 6px; font-size: 1rem; }
+.funnel { margin: 6px 0 0; font-size: 0.875rem; color: var(--ink-2); line-height: 1.5; max-width: 65ch; }
+.funnel b { font-weight: 600; color: var(--ink); }
+.sl-town {
+  margin: 24px 0 0; padding-bottom: 6px;
+  font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+  border-bottom: var(--border-hairline) solid var(--line);
+}
+.sl-town .count { font-weight: 500; margin-left: 4px; }
+.sl { list-style: none; margin: 0; padding: 0; }
+.sl li + li { border-top: var(--border-hairline) solid var(--line); }
+.sl-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 8px; margin-inline: -8px;     /* the highlight reaches past the text, the text stays on the grid */
+  color: inherit; text-decoration: none;
+  border-radius: var(--r-ctl);
+  transition: background-color 150ms ease;
+}
+@media (hover: hover) and (pointer: fine) { .sl-row:hover { background: var(--well); } }
+.sl-row:active { background: var(--well); }
+.sl-main { flex: 1; min-width: 0; }
+.sl-l1 { display: flex; align-items: baseline; gap: 8px; }
+.sl-addr { font-size: 0.9375rem; font-weight: 600; line-height: 1.3; }
+.sl-est { margin-left: auto; flex: none; font-size: 0.9375rem; font-weight: 600; }
+.sl-l2, .sl-l3 { font-size: 0.8125rem; color: var(--ink-2); margin-top: 2px; }
+.sl-l3 { color: var(--ink-3); }
+.sl-row .tag-row { margin-top: 6px; }
+.sl-row .chev { flex: none; color: var(--ink-3); }
+.back {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 44px; margin-left: -8px; padding-inline: 8px;
+  font-size: 0.875rem; font-weight: 500; text-decoration: none; border-radius: var(--r-ctl);
+}
+@media (hover: hover) and (pointer: fine) { .back:hover { background: var(--accent-tint); } }
+.house-head h2 { margin: 4px 0 0; font-size: 1.375rem; font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; text-wrap: balance; }
+.house-head .where { margin: 2px 0 0; font-size: 0.9375rem; color: var(--ink-2); }
+.house-head .links { display: flex; margin-left: -10px; margin-top: 6px; }
+.house-head .links a {
+  font-size: 0.875rem; font-weight: 500; text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 44px; padding-inline: 10px; border-radius: var(--r-ctl);
+}
+@media (hover: hover) and (pointer: fine) { .house-head .links a:hover { background: var(--accent-tint); text-decoration: underline; } }
+.sec { margin-top: 24px; }
+.sec h3 { margin: 0 0 10px; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.sec p { margin: 0; font-size: 0.9375rem; color: var(--ink-2); line-height: 1.5; max-width: 65ch; }
+.sec p + p { margin-top: 6px; }
+.sec p b { font-weight: 600; color: var(--ink); }
+.sec .fhint { margin-top: 8px; line-height: 1.5; }
+.call { background: var(--card); border-radius: var(--r-card); box-shadow: var(--shadow-card); padding: 14px 16px; }   /* the card's padding */
+.call + .call { margin-top: 10px; }
+.call-head { font-size: 0.9375rem; color: var(--ink-2); }
+.call-head b { font-weight: 600; color: var(--ink); }
+.hchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.hchip { font-size: 0.75rem; font-weight: 500; padding: 3px 8px; border-radius: 5px; background: var(--well); color: var(--ink-3); }
+.hchip.pass { background: var(--good-tint); color: var(--good-fg); }
+.hchip.fail { background: var(--bad-tint); color: var(--bad-fg); }
+.call blockquote {
+  margin: 10px 0 0; padding-left: 12px; border-left: 2px solid var(--line-strong);
+  font-size: 0.9375rem; color: var(--ink); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 65ch;
+}
+.axes-line { margin-top: 6px; font-size: 0.8125rem; color: var(--ink-3); }
+table.dt { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.875rem; }
+.dt caption { text-align: left; caption-side: top; padding-bottom: 6px; }
+.page-head h2, .house-head h2 { outline: none; }   /* focus lands here on a route change; the ring would read as a control */
+.dt th, .dt td { text-align: left; padding: 8px 8px 8px 0; border-bottom: var(--border-hairline) solid var(--line); vertical-align: top; }
+.dt th { font-weight: 500; color: var(--ink-3); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.dt th.r, .dt td.r { text-align: right; }
+.dt th:last-child, .dt td:last-child { padding-right: 0; }
+.dt tr.me td { font-weight: 600; color: var(--ink); }
+.dt td .mark { font-weight: 500; color: var(--ink-3); font-size: 0.75rem; margin-left: 6px; white-space: nowrap; }
+.dt tbody tr:last-child td { border-bottom: 0; }
+
 /* ---------- done / empty / skeleton ---------- */
 .done { margin-top: 8px; }
 .done summary {
@@ -516,12 +592,15 @@ footer {
 </div>
 <div class="tabs-bar">
   <div class="wrap">
-    <div class="tabs" role="tablist" aria-label="Listing state">
+    <div class="tabs" role="tablist" aria-label="Views">
       <button class="tab" id="tab-off" role="tab" aria-selected="true" aria-controls="list">
         Off market<span class="count num" id="count-off"></span>
       </button>
       <button class="tab" id="tab-on" role="tab" aria-selected="false" aria-controls="list">
         On market<span class="count num" id="count-on"></span>
+      </button>
+      <button class="tab" id="tab-shortlist" role="tab" aria-selected="false" aria-controls="page">
+        Shortlist<span class="count num" id="count-shortlist"></span>
       </button>
     </div>
   </div>
@@ -574,6 +653,7 @@ footer {
     <div class="filter-summary" id="filter-summary" hidden></div>
   </div>
   <main id="list" class="list"></main>
+  <section id="page" class="page" hidden></section>
   <details class="done" id="done">
     <summary>
       <svg class="arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="m5 3 4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -593,6 +673,7 @@ footer {
       <button class="big-btn" data-profile="Michelle">Michelle</button>
     </div>
     <button class="minor" id="gate-cancel" hidden>Cancel</button>
+    <button class="minor" id="gate-browse">Browse the shortlist</button>
   </div>
 </div>
 <div class="screen" id="key-screen" hidden>
@@ -629,7 +710,23 @@ const TOWNS = ['Wenham', 'Hamilton', 'Beverly'];
 const TOWN_PREDICATE = t => t === 'Beverly'
   ? { in_target_area: 'is.true', or: '(building_style.ilike.*COLONIAL*,building_style.eq.Dutch Col)' }
   : { building_style: 'ilike.*COLONIAL*' };
-const ZIPS = { Wenham: '01984', Hamilton: '01982', Beverly: '01915' };
+const ZIPS = { Wenham: '01984', Hamilton: '01982', Beverly: '01915', Marblehead: '01945', Swampscott: '01907' };
+// Shortlist membership: a person's latest call on the house is one of these.
+const CONSIDER = new Set(['would-consider', 'would-offer-now']);
+const VERDICT_LABEL = { 'would-offer-now': 'Would offer now', 'would-consider': 'Would consider', 'pass-on-house': 'Pass on house',
+  'pass-on-location-only': 'Pass on location only', defer: 'Defer', exclude: 'Exclude' };
+const EVENT_LABEL = { listed: 'Listed', price_change: 'Price change', open_house: 'Open house', pending: 'Pending', delisted: 'Delisted', sold: 'Sold' };
+// Routes (hash): '' | 'off' | 'on' = the queue; 'shortlist'; 'house/<id>'. The
+// shortlist and house pages need no profile — they are the pages shared with
+// the realtor (Luke, 2026-09-14).
+function parseRoute() {
+  const h = location.hash.slice(1);
+  const m = h.match(/^house\/(\d+)$/);
+  if (m) return { name: 'house', id: +m[1] };
+  if (h === 'shortlist') return { name: 'shortlist' };
+  return { name: h === 'on' ? 'on' : 'off' };
+}
+const isQueueRoute = r => r.name === 'off' || r.name === 'on';
 const TENURE_YEARS = 15;
 const HURDLES = [
   ['main_road',   'Main road'],
@@ -671,8 +768,16 @@ function ceiling() {
 /* ================= state ================= */
 const S = {
   profile: (['Luke', 'Michelle'].includes(AS) ? AS : null) || localStorage.getItem('hh2-profile') || null,
-  view: 'off',
-  props: [],                 // enriched property rows
+  route: parseRoute(),
+  view: parseRoute().name === 'on' ? 'on' : 'off',
+  props: [],                 // enriched property rows (the watchlist)
+  extras: [],                // evaluated homes outside the watchlist (sold, above the ceiling, other towns)
+  evals: new Map(),          // property_id -> evaluations_public rows, date asc
+  taxRates: {},              // town -> latest {fiscal_year, residential_rate}
+  events: new Map(),         // property_id -> listing_events rows, asc (on-market + shortlist ids at load; a house page fetches its own)
+  sold: new Map(),           // property_id -> {price, on}
+  streetSales: new Map(),    // "town|STREET" -> properties rows on that street (house page)
+  slScroll: 0,               // shortlist scroll position, restored on the way back from a house
   ratios: {},                // town -> latest ratio row
   marks: { Luke: new Set(), Michelle: new Set() },
   streets: new Map(),        // "town|STREET" -> street_metrics row
@@ -701,7 +806,9 @@ const fmtNum = n => n == null ? '?' : n.toLocaleString('en-US');
 const fmtBa = b => b == null ? '?' : String(+(+b).toFixed(1)).replace(/\.0$/, '');
 const fmtK = n => n == null ? '?' : n >= 1000 ? Math.round(n / 1000) + 'k' : String(n);   // estimates read as estimates (AADT is modelled)
 const acres = sqft => sqft ? sqft / 43560 : null;
-const shortDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const shortDate = d => new Date(d.slice(0, 10) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const longDate = d => new Date(d.slice(0, 10) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const monthYear = d => new Date(d.slice(0, 10) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 // Assessor form -> reading form ('186 TOPSFIELD RD' -> '186 Topsfield Rd')
 const ABBR = { AV: 'Ave', WM: 'William' };
 const displayAddr = a => a.split(' ').map(w => ABBR[w] || (w.charAt(0) + w.slice(1).toLowerCase())).join(' ');
@@ -759,18 +866,19 @@ async function loadLive() {
   if (CEIL == null) throw new Error('No budget ceiling in this build — deploy bakes it, or use ?demo=1 locally.');
   S.ceiling = CEIL;
 
-  const [ratios, sold, marks, metrics, forms, props] = await Promise.all([
+  const [ratios, sold, evals, metrics, forms, taxRates, props] = await Promise.all([
     api('town_price_ratios', {
       town: `in.(${TOWNS})`, order: 'computed_at.desc',
       select: 'town,r_median,r_p75,n,computed_at',
     }),
-    api('listing_events', { event: 'eq.sold', select: 'property_id', order: 'property_id' }),
-    api('eval_marks', { select: 'property_id,nominated_by', order: 'property_id' }),
+    api('listing_events', { event: 'eq.sold', select: 'property_id,event,list_price,observed_on', order: 'observed_on.asc,id' }),
+    api('evaluations_public', { select: 'id,property_id,verdict,failure_axis,hurdles,nominated_by,date_recorded,verbatim_reasoning', order: 'date_recorded.asc,id' }),
     api('street_metrics', {
       town: `in.(${TOWNS})`, order: 'town,street',
       select: 'town,street,parcel_count,median_lot_sqft,median_far,far_p90,median_year_built',
     }),
     api('street_forms', { town: `in.(${TOWNS})`, order: 'town,street', select: 'town,street,form,terminus,length_m' }),
+    api('town_tax_rates', { order: 'town,fiscal_year.desc', select: 'town,fiscal_year,residential_rate' }),
     Promise.all(TOWNS.map(t => api('properties', {
       town: `eq.${t}`,
       ...TOWN_PREDICATE(t),
@@ -787,35 +895,83 @@ async function loadLive() {
   const soldIds = new Set(sold.map(r => r.property_id));
   const kept = props.filter(p => !soldIds.has(p.id));
 
+  // Evaluated homes that aren't on the watchlist any more (sold since, above
+  // the ceiling, another town): the shortlist still shows what was said.
+  const have = new Set(kept.map(p => p.id));
+  const extraIds = [...new Set(evals.map(e => e.property_id))].filter(id => !have.has(id));
+  const extras = extraIds.length ? await api('properties', {
+    id: `in.(${extraIds})`, order: 'id',
+    select: 'id,address,town,neighborhood,year_built,sqft,bedrooms,bathrooms,building_style,lot_size,' +
+            'assessed_value,price_estimate,last_sale_date,last_sale_price,on_market,road_fclass,road_aadt',
+  }) : [];
+
   const onIds = kept.filter(p => p.on_market === true).map(p => p.id);
+  const byId = new Map(); for (const e of evals) (byId.get(e.property_id) || byId.set(e.property_id, []).get(e.property_id)).push(e);
+  const slIds = [...byId.keys()].filter(id => [...latestByPerson(byId.get(id)).values()].some(r => CONSIDER.has(r.verdict)));
+  const wantIds = [...new Set([...onIds, ...slIds])];
   let events = [];
-  if (onIds.length) {
+  if (wantIds.length) {
     events = await api('listing_events', {
-      property_id: `in.(${onIds})`,
+      property_id: `in.(${wantIds})`,
       order: 'observed_on.asc,property_id',
       select: 'property_id,event,list_price,observed_on',
     });
   }
-  ingest(kept, ratios, marks, metrics, forms, events);
+  ingest({ props: kept, extras, ratios, evals, metrics, forms, events, taxRates, sold });
 }
 
-function ingest(props, ratios, marks, metrics, forms, events) {
-  S.ratios = {};
-  for (const r of ratios) if (!S.ratios[r.town]) S.ratios[r.town] = r; // first seen = latest
-  S.marks = { Luke: new Set(), Michelle: new Set() };
-  for (const m of marks) S.marks[m.nominated_by]?.add(m.property_id);
-  S.streets = new Map(metrics.map(m => [m.town + '|' + m.street, m]));
-  S.forms = new Map(forms.map(f => [f.town + '|' + f.street, f]));
-
-  S.priceEvents = new Map();
-  for (const e of events) { // ordered asc: later rows overwrite
-    const cur = S.priceEvents.get(e.property_id) || {};
+// Latest evaluation per person for one house (rows date asc). Pre-profile
+// seed rows (nominated_by null) collapse into one unnamed person.
+function latestByPerson(rows) {
+  const m = new Map();
+  for (const r of rows || []) m.set(r.nominated_by || '', r);
+  return m;
+}
+const evalsFor = id => S.evals.get(id) || [];
+const onShortlist = id => [...latestByPerson(evalsFor(id)).values()].some(r => CONSIDER.has(r.verdict));
+const allProps = () => S.props.concat(S.extras);
+const shortlist = () => allProps().filter(p => onShortlist(p.id));
+// Price state from a house's listing events (rows asc: later rows overwrite).
+function indexEvents(id, rows) {
+  S.events.set(id, rows);
+  const cur = {};
+  for (const e of rows) {
     if (e.event === 'listed') Object.assign(cur, { listPrice: e.list_price, listedOn: e.observed_on, prevPrice: null, pending: false });
     else if (e.event === 'price_change') Object.assign(cur, { prevPrice: cur.listPrice ?? null, listPrice: e.list_price ?? cur.listPrice });
     else if (e.event === 'pending') cur.pending = true;
-    S.priceEvents.set(e.property_id, cur);
   }
+  S.priceEvents.set(id, cur);
+}
+function addEval(row) {                       // a save, or a loaded row
+  (S.evals.get(row.property_id) || S.evals.set(row.property_id, []).get(row.property_id)).push(row);
+  if (row.nominated_by) S.marks[row.nominated_by]?.add(row.property_id);
+}
+function removeEval(row) {                    // a failed save
+  const rows = S.evals.get(row.property_id) || [];
+  const i = rows.indexOf(row); if (i >= 0) rows.splice(i, 1);
+  if (row.nominated_by && !rows.some(r => r.nominated_by === row.nominated_by)) S.marks[row.nominated_by]?.delete(row.property_id);
+}
+
+function ingest({ props, extras = [], ratios, evals, metrics, forms, events, taxRates = [], sold = [] }) {
+  S.ratios = {};
+  for (const r of ratios) if (!S.ratios[r.town]) S.ratios[r.town] = r; // first seen = latest
+  S.taxRates = {};
+  for (const r of taxRates) if (!S.taxRates[r.town]) S.taxRates[r.town] = r; // ordered fiscal_year desc: first seen = latest
+  S.marks = { Luke: new Set(), Michelle: new Set() };
+  S.evals = new Map();
+  for (const e of evals) addEval(e);
+  S.streets = new Map(metrics.map(m => [m.town + '|' + m.street, m]));
+  S.forms = new Map(forms.map(f => [f.town + '|' + f.street, f]));
+  S.sold = new Map();
+  for (const s of sold) S.sold.set(s.property_id, { price: s.list_price, on: s.observed_on });   // asc: the latest sale wins
+
+  S.priceEvents = new Map();
+  S.events = new Map();
+  const byId = new Map();
+  for (const e of events) (byId.get(e.property_id) || byId.set(e.property_id, []).get(e.property_id)).push(e);
+  for (const [id, rows] of byId) indexEvents(id, rows);
   S.props = props;
+  S.extras = extras;
   S.loaded = true;
 }
 
@@ -847,10 +1003,6 @@ function loadDemo() {
     { town: 'Hamilton', r_median: 1.15, r_p75: 1.22, n: 61, computed_at: '2026-07-30T00:00:00Z' },
     { town: 'Beverly', r_median: 1.108, r_p75: 1.1794, n: 188, computed_at: '2026-09-05T00:00:00Z' },
   ];
-  const marks = [
-    { property_id: 4, nominated_by: 'Michelle' },
-    { property_id: 6, nominated_by: 'Luke' },
-  ];
   const M = (town, street, o) => Object.assign({ town, street }, o);
   const metrics = [
     M('Wenham', 'TOPSFIELD RD', { parcel_count: 28, median_lot_sqft: 47916, median_far: 0.06, far_p90: 0.1, median_year_built: 1952 }),
@@ -880,16 +1032,37 @@ function loadDemo() {
     { property_id: 9, event: 'price_change', list_price: 1149000, observed_on: '2026-09-01' },
     { property_id: 10, event: 'listed', list_price: 999000, observed_on: '2026-08-28' },
   ];
+  const E = (property_id, nominated_by, verdict, date_recorded, o) => Object.assign({ property_id, nominated_by, verdict, date_recorded, hurdles: null, failure_axis: null, verbatim_reasoning: null }, o);
+  const evals = [
+    E(4, 'Michelle', 'would-consider', '2026-09-02T14:10:00Z', { hurdles: { main_road: 'pass', curb_appeal: 'pass', lot_size: 'pass', neighbors: 'pass', yard: 'fail', placement: 'pass' }, verbatim_reasoning: 'Cul-de-sac end lot, yard slopes hard to the back. House sits well.' }),
+    E(6, 'Luke', 'would-consider', '2026-09-01T22:40:00Z', { hurdles: { main_road: 'pass', curb_appeal: 'pass', lot_size: 'pass', neighbors: 'pass', yard: 'pass', placement: 'pass' }, verbatim_reasoning: 'Quiet block, houses well kept. This one has the deepest lot on the street.' }),
+    E(6, 'Michelle', 'defer', '2026-09-03T01:15:00Z', { hurdles: { main_road: 'pass', curb_appeal: 'fail' } }),
+    E(2, 'Luke', 'exclude', '2026-09-01T22:55:00Z', { hurdles: { main_road: 'fail', neighbors: 'fail' } }),
+    E(9, 'Luke', 'would-offer-now', '2026-08-30T16:00:00Z', { failure_axis: ['price'], verbatim_reasoning: 'Everything we want. Listed above where we can go, but it has sat for three weeks.' }),
+    E(11, 'Luke', 'defer', '2026-09-06T13:00:00Z', { hurdles: { main_road: 'pass', placement: 'fail' }, verbatim_reasoning: 'Sits below the road.' }),
+    E(3, null, 'would-consider', '2026-08-20T12:00:00Z', { verbatim_reasoning: 'Seed row from the walkthrough.' }),
+  ];
+  const marks = evals;
+  const taxRates = [
+    { town: 'Wenham', fiscal_year: 2026, residential_rate: 15.99 }, { town: 'Hamilton', fiscal_year: 2026, residential_rate: 15.04 },
+    { town: 'Beverly', fiscal_year: 2026, residential_rate: 10.81 },
+  ];
   S.ceiling = 1300000; // demo fixture value
-  ingest(props, ratios, marks, metrics, forms, events);
+  ingest({ props, ratios, evals, metrics, forms, events, taxRates });
+  for (const p of props) S.streetSales.set(skey(p), props.filter(q => skey(q) === skey(p)));   // no network in demo: the street is the fixture
 }
 
 /* ================= derived ================= */
 function tier(p) {
   const r = S.ratios[p.town];
   if (!r || !p.assessed_value || !S.ceiling) return null;
+  if (p.price_estimate > S.ceiling) return 'over';   // only evaluated homes outside the watchlist get here
   return p.assessed_value <= S.ceiling / parseFloat(r.r_p75) ? 'in' : 'watch';
 }
+const annualTax = (assessed, town) => {
+  const r = S.taxRates[town];
+  return r && assessed ? assessed * parseFloat(r.residential_rate) / 1000 : null;
+};
 const isMainRoad = p => p.road_fclass != null && p.road_fclass <= 6;
 const tenureYears = p => p.last_sale_date ? new Date().getFullYear() - +p.last_sale_date.slice(0, 4) : null;
 const inView = p => S.view === 'on' ? p.on_market === true : p.on_market !== true;
@@ -924,11 +1097,15 @@ const filtersActive = () => {
 };
 
 /* ================= card rendering ================= */
-function tagRow(p, done) {
+function tagRow(p, done, page) {   // page: 'house' | 'row' (a shortlist row skips In budget — its resting state)
   const tags = [];
   const t = tier(p);
-  if (t === 'in') tags.push('<span class="tag tier-in">In budget</span>');
+  if (t === 'in' && page !== 'row') tags.push('<span class="tag tier-in">In budget</span>');
   if (t === 'watch') tags.push('<span class="tag">Borderline</span>');
+  if (t === 'over') tags.push('<span class="tag">Above ceiling</span>');
+  const sold = S.sold.get(p.id);
+  if (sold) tags.push(`<span class="tag">Sold ${sold.on ? monthYear(sold.on) : ''}</span>`);
+  else if (p.on_market === true && page) tags.push('<span class="tag listed">Listed</span>');
   if (isMainRoad(p)) tags.push(`<span class="tag warn">Main rd${p.road_aadt ? ' · ' + fmtK(p.road_aadt) + '/day' : ''}</span>`);
   const ac = acres(p.lot_size);
   if (ac != null && ac < 0.30) tags.push('<span class="tag">Small lot</span>');
@@ -1065,6 +1242,190 @@ function formValid(p, d) {
   return true;
 }
 
+/* ================= shortlist + house pages ================= */
+const CHEV = '<svg class="chev" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const personName = r => r.nominated_by || 'earlier note';
+function hurdleSummary(h) {
+  if (!h) return '';
+  const pass = Object.values(h).filter(v => v === 'pass').length;
+  const failed = Object.entries(h).filter(([, v]) => v === 'fail').map(([k]) => HURDLES.find(x => x[0] === k)?.[1].toLowerCase() || k);
+  const bits = [`${pass} cleared`];
+  if (failed.length) bits.push(`${failed.join(', ')} failed`);
+  return bits.join(', ');
+}
+const specsLine = p => `<p class="specs num"><span>${p.bedrooms ?? '?'}bd · ${fmtBa(p.bathrooms)}ba</span><span>${fmtNum(p.sqft)} sqft</span><span>${acres(p.lot_size)?.toFixed(2) ?? '?'} ac</span><span>${p.year_built ?? '?'}</span><span>${tenureYears(p) != null ? tenureYears(p) + ' yr' : '—'}</span></p>`;
+
+function shortlistRow(p) {
+  const latest = [...latestByPerson(evalsFor(p.id)).values()];
+  const considers = latest.filter(r => CONSIDER.has(r.verdict)).sort((a, b) => b.date_recorded.localeCompare(a.date_recorded));
+  const others = latest.filter(r => !CONSIDER.has(r.verdict));
+  const lead = considers[0];
+  const l3 = [VERDICT_LABEL[lead.verdict]];
+  for (const r of considers) l3.push(`${esc(personName(r))}, ${shortDate(r.date_recorded)}`);
+  const hs = hurdleSummary(lead.hurdles);
+  if (hs) l3.push(hs);
+  for (const r of others) l3.push(`${esc(personName(r))}: ${VERDICT_LABEL[r.verdict]?.toLowerCase() || r.verdict}`);
+  const l2 = [];
+  if (p.town === 'Beverly' && p.neighborhood) l2.push(esc(p.neighborhood));
+  l2.push(`${p.bedrooms ?? '?'}bd · ${fmtBa(p.bathrooms)}ba`, `${fmtNum(p.sqft)} sqft`, `${acres(p.lot_size)?.toFixed(2) ?? '?'} ac`, `${p.year_built ?? '?'}`);
+  const tags = tagRow(p, true, 'row');
+  return `<li><a class="sl-row" href="#house/${p.id}">
+    <div class="sl-main">
+      <div class="sl-l1"><span class="sl-addr">${esc(displayAddr(p.address))}</span><span class="sl-est num">${money(p.price_estimate)}</span></div>
+      <div class="sl-l2 num">${l2.join(' · ')}</div>
+      <div class="sl-l3">${l3.join(' · ')}</div>
+      ${tags}
+    </div>${CHEV}</a></li>`;
+}
+
+function renderShortlist() {
+  const page = $('page');
+  const sl = shortlist();
+  // The funnel: every evaluated home lands in one bucket by its people's latest calls.
+  let consider = 0, defer = 0, out = 0;
+  for (const rows of S.evals.values()) {
+    const L = [...latestByPerson(rows).values()];
+    if (L.some(r => CONSIDER.has(r.verdict))) consider++;
+    else if (L.some(r => r.verdict === 'defer')) defer++;
+    else out++;
+  }
+  const looked = S.evals.size;
+  const listedSince = sl.filter(p => {
+    const t = [...latestByPerson(evalsFor(p.id)).values()].filter(r => CONSIDER.has(r.verdict)).map(r => r.date_recorded.slice(0, 10)).sort()[0];
+    return (S.events.get(p.id) || []).some(e => e.event === 'listed' && e.observed_on >= t);
+  }).length;
+  let h = `<header class="page-head"><h2 tabindex="-1">Shortlist<span class="count num">${sl.length}</span></h2>
+    <p class="funnel num">Of <b>${S.props.length}</b> homes on the watchlist, <b>${looked}</b> have been looked at:
+    <b>${consider}</b> would consider · <b>${defer}</b> deferred · <b>${out}</b> passed on · <b>${listedSince}</b> listed since.</p></header>`;
+  if (!sl.length) {
+    h += `<div class="empty"><div class="big">Nothing on the shortlist yet</div>A gate check that ends in Would consider lands here.</div>`;
+  } else {
+    const towns = [...TOWNS, ...[...new Set(sl.map(p => p.town))].filter(t => !TOWNS.includes(t)).sort()];
+    for (const t of towns) {
+      const rows = sl.filter(p => p.town === t).sort((a, b) => (a.price_estimate ?? 9e9) - (b.price_estimate ?? 9e9));
+      if (!rows.length) continue;
+      h += `<h3 class="sl-town">${t}<span class="count num">${rows.length}</span></h3><ul class="sl">${rows.map(shortlistRow).join('')}</ul>`;
+    }
+  }
+  page.innerHTML = h;
+}
+
+// The house page fetches what the list didn't need: the street's parcels
+// (recent sales) and this house's own listing events.
+async function loadHouse(id) {
+  const p = allProps().find(x => x.id === id);
+  if (!p || DEMO) return;
+  const key = skey(p), street = streetOf(p.address);
+  const jobs = [];
+  if (!S.streetSales.has(key)) jobs.push(api('properties', {
+    town: `eq.${p.town}`, address: `ilike.*${street}`, order: 'id',
+    select: 'id,address,town,sqft,lot_size,building_style,last_sale_date,last_sale_price,assessed_value',
+  }).then(rows => S.streetSales.set(key, rows.filter(r => streetOf(r.address) === street)))
+    .catch(e => S.streetSales.set(key, { error: String(e.message || e) })));
+  if (!S.events.has(id)) jobs.push(api('listing_events', {
+    property_id: `eq.${id}`, order: 'observed_on.asc,id', select: 'property_id,event,list_price,observed_on',
+  }).then(rows => indexEvents(id, rows)).catch(() => indexEvents(id, [])));
+  if (!jobs.length) return;
+  await Promise.all(jobs);
+  if (S.route.name === 'house' && S.route.id === id) render();
+}
+
+function renderHouse(id) {
+  const page = $('page');
+  const back = `<a class="back" href="#shortlist"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Shortlist</a>`;
+  const p = allProps().find(x => x.id === id);
+  if (!p) {
+    page.innerHTML = `${back}<div class="empty"><div class="big">No house with that link</div>It may not have been evaluated yet.</div>`;
+    return;
+  }
+  const l = links(p);
+  const saleYr = p.last_sale_date ? p.last_sale_date.slice(0, 4) : null;
+  const where = p.town + (p.town === 'Beverly' && p.neighborhood ? ' · ' + esc(p.neighborhood) : '');
+  let h = `${back}<header class="house-head">
+    <h2 tabindex="-1">${esc(displayAddr(p.address))}</h2><p class="where">${where}</p>
+    <div class="price-row">${priceRow(p)}</div>
+    ${specsLine(p)}
+    ${tagRow(p, true, 'house')}
+    ${streetLine(p)}
+    <p class="hist-line num">Assessed ${money(p.assessed_value)}${saleYr ? ` · sold ${saleYr} for ${money(p.last_sale_price)}` : ''}</p>
+    <div class="links">
+      <a href="${l.zillow}" target="_blank" rel="noopener">Zillow</a>
+      <a href="${l.redfin}" target="_blank" rel="noopener">Redfin</a>
+      <a href="${l.map}" target="_blank" rel="noopener">Map</a>
+    </div></header>`;
+
+  // Our call — every evaluation on record, newest first, in the words saved.
+  const rows = evalsFor(id).slice().sort((a, b) => b.date_recorded.localeCompare(a.date_recorded));
+  h += `<section class="sec"><h3>Our call</h3>`;
+  if (!rows.length) h += `<p>No evaluation on record.</p>`;
+  for (const r of rows) {
+    h += `<div class="call"><div class="call-head"><b>${VERDICT_LABEL[r.verdict] || esc(r.verdict)}</b> · ${esc(personName(r))}, ${longDate(r.date_recorded)}</div>`;
+    if (r.hurdles) h += `<div class="hchips">${HURDLES.map(([k, label]) => {
+      const v = r.hurdles[k];
+      return `<span class="hchip${v === 'pass' ? ' pass' : v === 'fail' ? ' fail' : ''}">${label}${v === 'pass' ? ' ✓' : v === 'fail' ? ' ✕' : ''}</span>`;
+    }).join('')}</div>`;
+    if (r.failure_axis?.length && !(r.failure_axis.length === 1 && r.failure_axis[0] === 'none'))
+      h += `<p class="axes-line">Fails on: ${r.failure_axis.map(a => AXIS_LABEL[a]?.toLowerCase() || a).join(', ')}</p>`;
+    if (r.verbatim_reasoning) h += `<blockquote>${esc(r.verbatim_reasoning)}</blockquote>`;
+    h += `</div>`;
+  }
+  h += `</section>`;
+
+  // Cost — the estimate against the ceiling; tax on the ASSESSED value at each town's rate.
+  h += `<section class="sec"><h3>Cost</h3>`;
+  if (p.price_estimate != null && S.ceiling) {
+    const d = S.ceiling - p.price_estimate;
+    h += `<p class="num"><b>${money(p.price_estimate)}</b> estimate, ${d >= 0 ? `${money(d)} under` : `${money(-d)} over`} the ${money(S.ceiling)} ceiling.</p>`;
+  }
+  const tax = annualTax(p.assessed_value, p.town);
+  const fy = S.taxRates[p.town]?.fiscal_year;
+  if (tax != null) {
+    h += `<p class="num">Assessed ${moneyFull(p.assessed_value)}. At ${p.town}&rsquo;s FY${fy} rate that is <b>${moneyFull(tax)}</b> a year in property tax.</p>`;
+    const towns = [...new Set([...TOWNS, p.town])].filter(t => S.taxRates[t]);
+    h += `<table class="dt num"><thead><tr><th scope="col">Town</th><th scope="col" class="r">Rate / $1,000</th><th scope="col" class="r">Tax on this value</th></tr></thead><tbody>` +
+      towns.map(t => `<tr${t === p.town ? ' class="me"' : ''}><td>${t}</td>` +
+        `<td class="r">$${parseFloat(S.taxRates[t].residential_rate).toFixed(2)}</td><td class="r">${moneyFull(annualTax(p.assessed_value, t))}</td></tr>`).join('') +
+      `</tbody></table>
+      <p class="fhint">Same assessed value, each town&rsquo;s FY${fy} residential rate. Towns assess on their own, so this compares rates, not what the house would be assessed at elsewhere.</p>`;
+  } else h += `<p>No tax rate on file for ${p.town}.</p>`;
+  h += `</section>`;
+
+  // Street — context line, then recent sales on the same street from the assessor roll.
+  const street = streetOf(p.address);
+  const sm = S.streets.get(skey(p)), sf = S.forms.get(skey(p));
+  h += `<section class="sec"><h3>Street</h3>`;
+  const sbits = [];
+  if (sf && sf.form !== 'stub') sbits.push(FORM_LABELS[sf.form] || sf.form);
+  if (sm) { sbits.push(`${sm.parcel_count} lots`); if (sm.median_lot_sqft) sbits.push(`${(sm.median_lot_sqft / 43560).toFixed(2)} ac median lot`); if (sm.median_far != null) sbits.push(`median FAR ${(+sm.median_far).toFixed(2)}`); if (sm.median_year_built) sbits.push(`built around ${sm.median_year_built}`); }
+  if (p.road_fclass != null) sbits.push(isMainRoad(p) ? `main road${p.road_aadt ? ', about ' + fmtK(p.road_aadt) + ' cars a day' : ''}` : 'residential road');
+  h += `<p class="num"><b>${esc(displayAddr(street))}</b>${sbits.length ? ': ' + sbits.join(' · ') : ''}</p>`;
+  const sales = S.streetSales.get(skey(p));
+  const since = new Date().getFullYear() - 10;
+  if (!sales) h += `<p class="fhint">Loading sales on ${esc(displayAddr(street))}…</p>`;
+  else if (sales.error) h += `<p class="fhint">Couldn&rsquo;t load sales — ${esc(sales.error)}</p>`;
+  else {
+    const recent = sales.filter(r => r.last_sale_price > 100000 && r.last_sale_date && +r.last_sale_date.slice(0, 4) >= since)
+      .sort((a, b) => b.last_sale_date.localeCompare(a.last_sale_date)).slice(0, 15);
+    if (!recent.length) h += `<p class="fhint">No sales on this street since ${since} in the assessor roll.</p>`;
+    else h += `<table class="dt num"><caption class="fhint">Sales on ${esc(displayAddr(street))} since ${since}, from the assessor roll (last sale per parcel)</caption>
+      <thead><tr><th scope="col">No.</th><th scope="col">Sold</th><th scope="col" class="r">Price</th><th scope="col" class="r">Sqft</th><th scope="col" class="r">$/sqft</th></tr></thead><tbody>` +
+      recent.map(r => `<tr${r.id === p.id ? ' class="me"' : ''}><td>${esc(r.address.replace(/\s.*$/, ''))}${r.id === p.id ? '<span class="mark">this house</span>' : ''}</td>` +
+        `<td>${monthYear(r.last_sale_date)}</td><td class="r">${money(r.last_sale_price)}</td><td class="r">${fmtNum(r.sqft)}</td><td class="r">${r.sqft ? '$' + Math.round(r.last_sale_price / r.sqft) : '—'}</td></tr>`).join('') +
+      `</tbody></table>`;
+  }
+  h += `</section>`;
+
+  // Listing history — only when there is one.
+  const ev = S.events.get(id);
+  if (ev === undefined && !DEMO) h += `<section class="sec"><h3>Listing history</h3><p class="fhint">Loading…</p></section>`;
+  else if (ev?.length) {
+    h += `<section class="sec"><h3>Listing history</h3><table class="dt num"><thead><tr><th scope="col">Date</th><th scope="col">Event</th><th scope="col" class="r">Price</th></tr></thead><tbody>` +
+      ev.slice().reverse().map(e => `<tr><td>${longDate(e.observed_on)}</td><td>${EVENT_LABEL[e.event] || esc(e.event)}</td><td class="r">${e.list_price != null ? moneyFull(e.list_price) : '—'}</td></tr>`).join('') +
+      `</tbody></table></section>`;
+  }
+  page.innerHTML = h;
+}
+
 /* ================= render ================= */
 // Deploy probe: what the rendered list actually contains, per town — labels,
 // street-line coverage, tag kinds, unknown cells — so a deploy is compared to
@@ -1090,6 +1451,7 @@ function writeProbe() {
   const summary = {
     at: new Date().toISOString(), url: location.href, profile: S.profile, view: S.view,
     cards: $('list').querySelectorAll('.card').length, done: +($('done-label').textContent.match(/\d+/)?.[0] || 0),
+    shortlist: shortlist().length,
     ratios: Object.fromEntries(Object.entries(S.ratios).map(([t, r]) => [t, +r.r_median])),
     streetKeys: Object.fromEntries(TOWNS.map(t => [t, [...S.streets.keys()].filter(k => k.startsWith(t + '|')).length])),
     byTown, errors: window.__probeErrors || [],
@@ -1109,17 +1471,37 @@ function render() {
   $('icon-sun').hidden = !dark;   // sun offered in dark mode, moon in light
   $('icon-moon').hidden = dark;
   $('demo-banner').hidden = !DEMO;
-  if (!S.loaded || !S.profile) return;
+  if (!S.loaded) return;
 
-  const mine = S.props.filter(inView);
-  const queueAll = mine.filter(p => !isDone(p));
-  const doneAll = mine.filter(p => isDone(p));
+  const route = S.route, queueRoute = isQueueRoute(route);
   const offQueue = S.props.filter(p => p.on_market !== true && !isDone(p)).length;
   const onQueue = S.props.filter(p => p.on_market === true && !isDone(p)).length;
   $('count-off').textContent = ` ${offQueue}`;
   $('count-on').textContent = ` ${onQueue}`;
-  $('tab-off').setAttribute('aria-selected', S.view === 'off');
-  $('tab-on').setAttribute('aria-selected', S.view === 'on');
+  $('count-shortlist').textContent = ` ${shortlist().length}`;
+  $('tab-off').setAttribute('aria-selected', route.name === 'off');
+  $('tab-on').setAttribute('aria-selected', route.name === 'on');
+  $('tab-shortlist').setAttribute('aria-selected', !queueRoute);
+  $('list').hidden = !queueRoute;
+  $('done').hidden = !queueRoute;
+  $('page').hidden = queueRoute;
+  document.querySelector('.wrap.content').classList.toggle('page-mode', !queueRoute);
+  const r = TOWNS.map(t => S.ratios[t] ? `${t} R ${(+S.ratios[t].r_median).toFixed(2)}` : null).filter(Boolean).join(' · ');
+  const rDate = S.ratios[TOWNS[0]]?.computed_at?.slice(0, 10);
+  $('foot').innerHTML = `Estimates = assessed × R, latest per town (${r}${rDate ? `, computed ${rDate}` : ''}).
+    Budget ceiling ${moneyFull(S.ceiling)}. In budget = within the ceiling even at p75 R; borderline = within at median R only.
+    Street context is informative only — it never filters anything by itself.`;
+  if (!queueRoute) {
+    $('filters').hidden = true;
+    if (route.name === 'shortlist') renderShortlist(); else renderHouse(route.id);
+    if (PROBE) writeProbe();
+    return;
+  }
+  if (!S.profile) { $('filters').hidden = true; if ($('gate').hidden) showGate(true); return; }   // the queue needs a name; the shortlist doesn't
+
+  const mine = S.props.filter(inView);
+  const queueAll = mine.filter(p => !isDone(p));
+  const doneAll = mine.filter(p => isDone(p));
   $('filters').hidden = false;
 
   const queue = filtered(queueAll);
@@ -1170,17 +1552,13 @@ function render() {
   $('done-label').textContent = `Done (${doneAll.length})`;
   $('done').style.display = doneAll.length ? '' : 'none';
   $('done-list').innerHTML = filtered(doneAll).map(p => card(p, true)).join('');
-
-  const r = TOWNS.map(t => S.ratios[t] ? `${t} R ${(+S.ratios[t].r_median).toFixed(2)}` : null).filter(Boolean).join(' · ');
-  const rDate = S.ratios[TOWNS[0]]?.computed_at?.slice(0, 10);
-  $('foot').innerHTML = `Estimates = assessed × R, latest per town (${r}${rDate ? `, computed ${rDate}` : ''}).
-    Budget ceiling ${moneyFull(S.ceiling)}. In budget = within the ceiling even at p75 R; borderline = within at median R only.
-    Street context is informative only — it never filters anything by itself.`;
   if (PROBE) writeProbe();
 }
 
 function renderSkeleton() {
-  $('list').innerHTML = Array.from({ length: 3 }, () => `<div class="skel" aria-hidden="true">
+  const host = isQueueRoute(S.route) ? $('list') : $('page');
+  $('page').hidden = isQueueRoute(S.route); $('list').hidden = !isQueueRoute(S.route);
+  host.innerHTML = Array.from({ length: 3 }, () => `<div class="skel" aria-hidden="true">
     <div style="height:20px;width:55%"></div>
     <div style="height:26px;width:35%;margin-top:10px"></div>
     <div style="height:14px;width:80%;margin-top:12px"></div>
@@ -1387,7 +1765,8 @@ async function save(id) {
   };
   // Optimistic: the queue moves now; the network catches up (or reverts).
   const me = S.profile;
-  S.marks[me].add(id);
+  const evalRow = { ...row, date_recorded: new Date().toISOString() };
+  addEval(evalRow);                              // marks + shortlist move with it
   S.localVerdicts[id] = { verdict: d.verdict, by: me, at: new Date().toISOString().slice(0, 10) };
   localStorage.setItem('hh2-verdicts', JSON.stringify(S.localVerdicts));
   S.open.delete(id);
@@ -1427,7 +1806,7 @@ async function save(id) {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     S.drafts.delete(id);
   } catch (e) {
-    S.marks[me].delete(id);
+    removeEval(evalRow);
     delete S.localVerdicts[id];
     localStorage.setItem('hh2-verdicts', JSON.stringify(S.localVerdicts));
     S.open.add(id);
@@ -1443,9 +1822,8 @@ async function save(id) {
 document.addEventListener('click', e => {
   const t = e.target.closest('button, a');
   if (!t) return;
-  if (t.id === 'tab-off' || t.id === 'tab-on') {
-    S.view = t.id === 'tab-on' ? 'on' : 'off';
-    render();
+  if (t.id === 'tab-off' || t.id === 'tab-on' || t.id === 'tab-shortlist') {
+    location.hash = t.id.slice(4);               // 'off' | 'on' | 'shortlist'; hashchange renders
     return;
   }
   if (t.id === 'theme-btn') {
@@ -1466,7 +1844,8 @@ document.addEventListener('click', e => {
     render();
     return;
   }
-  if (t.id === 'gate-cancel') { $('gate').hidden = true; return; }
+  if (t.id === 'gate-cancel') { $('gate').hidden = true; if (!S.profile) location.hash = 'shortlist'; return; }
+  if (t.id === 'gate-browse') { $('gate').hidden = true; location.hash = 'shortlist'; return; }
   if (t.id === 'clear-filters' || t.id === 'clear-filters-2') {
     S.filters = { search: '', town: '', road: '', form: '', beds: '', year: '', nhood: '', sort: S.filters.sort };
     for (const [id, k] of [['f-search', 'search'], ['f-town', 'town'], ['f-nhood', 'nhood'], ['f-road', 'road'], ['f-form', 'form'], ['f-beds', 'beds'], ['f-year', 'year']])
@@ -1534,6 +1913,19 @@ document.addEventListener('keydown', e => {
   }
 });
 
+window.addEventListener('hashchange', () => {
+  const prev = S.route;
+  if (prev.name === 'shortlist') S.slScroll = scrollY;
+  S.route = parseRoute();
+  if (isQueueRoute(S.route)) S.view = S.route.name;
+  if (!S.loaded) return;
+  render();
+  if (S.route.name === 'house') { scrollTo(0, 0); loadHouse(S.route.id); }
+  else if (S.route.name === 'shortlist' && prev.name === 'house') scrollTo(0, S.slScroll);   // back where you were in the list
+  else if (isQueueRoute(S.route) !== isQueueRoute(prev)) scrollTo(0, 0);
+  if (!isQueueRoute(S.route)) $('page').querySelector('h2')?.focus({ preventScroll: true });   // the tapped link left with the list; land on the heading
+});
+
 window.addEventListener('beforeunload', e => {
   if (S.pendingSaves > 0) { e.preventDefault(); e.returnValue = ''; }
 });
@@ -1557,7 +1949,7 @@ async function boot() {
     });
     return;
   }
-  if (!S.profile) showGate(false);
+  if (!S.profile && isQueueRoute(S.route)) showGate(false);
   renderSkeleton();
   try {
     if (DEMO) loadDemo(); else await loadLive();
@@ -1570,6 +1962,7 @@ async function boot() {
     $('f-nhood').innerHTML = '<option value="">All neighborhoods</option>' +
       zones.map(z => `<option value="${esc(z)}">${esc(z)}</option>`).join('');
     render();
+    if (S.route.name === 'house') loadHouse(S.route.id);
   } catch (e) {
     $('list').innerHTML = `<div class="load-err"><div class="big">Couldn&rsquo;t load the watchlist</div>
       <p>${esc(e.message || e)}</p><button onclick="location.reload()">Retry</button></div>`;

@@ -9,6 +9,13 @@
   document.documentElement.dataset.theme =
     localStorage.getItem('hh2-theme') ||
     (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  // Sections-bar style trial (Luke, 2026-09-14: "I would like to see it both
+  // ways"): ?bar=pill or ?bar=flat sets it and is remembered. Remove once ruled.
+  try {
+    const q = new URLSearchParams(location.search).get('bar');
+    if (q === 'pill' || q === 'flat') localStorage.setItem('hh2-bar', q);
+    document.documentElement.dataset.bar = localStorage.getItem('hh2-bar') || 'flat';
+  } catch (e) {}
 </script>
 <style>
 /* ---------- tokens ---------- */
@@ -50,6 +57,7 @@
   --z-sticky: 100;
   --z-screen: 200;
   --z-toast: 400;
+  --bar-h: 56px;             /* sections bar, phones only (0 at 640 and up) */
   /* saved-card exit curve. Feel-iteration 1 (Luke, 2026-09-11: "way too fast,
      I just saw the list jump"): the expo curve (0.19,1,0.22,1) put ~90% of a
      600-900px collapse into the first 90ms. Quad ease-out spreads it across
@@ -100,6 +108,9 @@ body {
   font-synthesis: none;
   -webkit-tap-highlight-color: transparent;
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+@media (max-width: 639.98px) {
+  body { padding-bottom: calc(24px + var(--bar-h) + env(safe-area-inset-bottom)); }   /* the sections bar sits over the page */
 }
 button {
   font: inherit;
@@ -156,6 +167,56 @@ a { color: var(--accent-strong); text-decoration-thickness: from-font; text-unde
   display: inline-flex; align-items: center; justify-content: center;
 }
 
+/* ---------- sections nav (2026-09-14, Luke's architecture) ----------
+   One <nav>, placed twice: a fixed bottom bar on phones, header-row items at
+   640 and up. Sections change surfaces; the tab bar below only partitions the
+   queue. Active = accent (departure #1); every item is labelled. */
+.sections { display: flex; }
+.sections a {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px; padding-inline: 12px;
+  border-radius: 999px;
+  font-size: 0.875rem; font-weight: 600;
+  color: var(--ink-3); text-decoration: none;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+.sections a[aria-current="page"] { color: var(--accent-strong); }
+.sections a .count { font-weight: 500; color: var(--ink-3); }
+.sections svg { flex: none; }
+@media (hover: hover) and (pointer: fine) {
+  .sections a:hover { background: var(--well); }
+}
+@media (max-width: 639.98px) {
+  .sections {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-sticky);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--bg);
+    border-top: var(--border-hairline) solid var(--line);
+  }
+  .sections a {
+    flex: 1; flex-direction: column; gap: 3px;
+    min-height: var(--bar-h); padding-inline: 8px; border-radius: 0;
+    font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.01em;
+  }
+  .sections a .count { display: none; }   /* the bar names places; counts live on the pages */
+  /* floating pill variant (?bar=pill): Redfin / Slack shape */
+  [data-bar="pill"] .sections {
+    left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+    padding: 4px; padding-bottom: 4px;
+    background: var(--card);
+    border: 0; border-radius: 999px;
+    box-shadow: var(--shadow-card), 0 8px 24px -8px oklch(0 0 0 / 0.18);
+  }
+  [data-bar="pill"] .sections a { min-height: 52px; border-radius: 999px; }
+  [data-bar="pill"] .sections a[aria-current="page"] { background: var(--accent-tint); }
+  html[data-bar="pill"] { --bar-h: 76px; }
+}
+@media (min-width: 640px) {
+  :root { --bar-h: 0px; }
+  .sections { margin-right: auto; margin-left: 4px; gap: 2px; }
+  .brand { margin-right: 0; }
+}
+
 /* ---------- tabs ---------- */
 .tabs-bar {
   position: sticky; top: 0; z-index: var(--z-sticky);
@@ -166,7 +227,7 @@ a { color: var(--accent-strong); text-decoration-thickness: from-font; text-unde
 .tab {
   flex: 1;
   min-height: 48px;
-  font-size: 0.875rem; font-weight: 600;   /* 15 -> 14 (2026-09-14): three tabs with live counts ("Off market 292") overflowed a 360px phone at 15 */
+  font-size: 0.9375rem; font-weight: 600;
   color: var(--ink-3);
   border-bottom: 2px solid transparent;
   transition: color 150ms ease, border-color 150ms ease;
@@ -555,7 +616,7 @@ table.dt { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 
   text-align: center; padding: 6px 16px;
 }
 .toast {
-  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom));
+  position: fixed; left: 50%; bottom: calc(16px + var(--bar-h) + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: var(--z-toast);
   background: var(--ink); color: var(--bg);
@@ -581,6 +642,10 @@ footer {
 <div class="wrap">
   <div class="brand-row">
     <span class="brand">House hunt</span>
+    <nav class="sections" aria-label="Sections">
+      <a id="nav-queue" href="#off"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M3.5 12.5h4l1.5 2.5h4l1.5-2.5h4M3.5 12.5v4a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-4M3.5 12.5 6 5.5a1.5 1.5 0 0 1 1.4-1h7.2a1.5 1.5 0 0 1 1.4 1l2.5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Queue</span></a>
+      <a id="nav-shortlist" href="#shortlist"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M5.5 4.5A1.5 1.5 0 0 1 7 3h8a1.5 1.5 0 0 1 1.5 1.5V19l-5.5-3.5L5.5 19V4.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Shortlist<span class="count num" id="count-shortlist"></span></span></a>
+    </nav>
     <button class="chip-btn" id="profile-btn" aria-label="Switch evaluator" hidden>
       <span class="avatar" id="profile-avatar"></span><span id="profile-name"></span>
     </button>
@@ -592,15 +657,12 @@ footer {
 </div>
 <div class="tabs-bar">
   <div class="wrap">
-    <div class="tabs" role="tablist" aria-label="Views">
+    <div class="tabs" role="tablist" aria-label="Listing state">
       <button class="tab" id="tab-off" role="tab" aria-selected="true" aria-controls="list">
         Off market<span class="count num" id="count-off"></span>
       </button>
       <button class="tab" id="tab-on" role="tab" aria-selected="false" aria-controls="list">
         On market<span class="count num" id="count-on"></span>
-      </button>
-      <button class="tab" id="tab-shortlist" role="tab" aria-selected="false" aria-controls="page">
-        Shortlist<span class="count num" id="count-shortlist"></span>
       </button>
     </div>
   </div>
@@ -1481,7 +1543,10 @@ function render() {
   $('count-shortlist').textContent = ` ${shortlist().length}`;
   $('tab-off').setAttribute('aria-selected', route.name === 'off');
   $('tab-on').setAttribute('aria-selected', route.name === 'on');
-  $('tab-shortlist').setAttribute('aria-selected', !queueRoute);
+  $('nav-queue').href = '#' + S.view;                  // back to the queue view you left
+  if (queueRoute) $('nav-queue').setAttribute('aria-current', 'page'); else $('nav-queue').removeAttribute('aria-current');
+  if (!queueRoute) $('nav-shortlist').setAttribute('aria-current', 'page'); else $('nav-shortlist').removeAttribute('aria-current');
+  document.querySelector('.tabs-bar').hidden = !queueRoute;   // the tab bar partitions the queue; it has no job on the other sections
   $('list').hidden = !queueRoute;
   $('done').hidden = !queueRoute;
   $('page').hidden = queueRoute;
@@ -1822,8 +1887,8 @@ async function save(id) {
 document.addEventListener('click', e => {
   const t = e.target.closest('button, a');
   if (!t) return;
-  if (t.id === 'tab-off' || t.id === 'tab-on' || t.id === 'tab-shortlist') {
-    location.hash = t.id.slice(4);               // 'off' | 'on' | 'shortlist'; hashchange renders
+  if (t.id === 'tab-off' || t.id === 'tab-on') {
+    location.hash = t.id.slice(4);               // 'off' | 'on'; hashchange renders
     return;
   }
   if (t.id === 'theme-btn') {

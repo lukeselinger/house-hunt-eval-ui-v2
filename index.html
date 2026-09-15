@@ -1504,6 +1504,10 @@ async function loadHouse(id) {
   }).then(rows => indexEvents(id, rows)).catch(() => indexEvents(id, [])));
   if (!jobs.length) return;
   await Promise.all(jobs);
+  // The row→page transition's new-state images are live: re-rendering the head
+  // mid-move removes the tagged elements and the browser aborts the move (the
+  // first visit to a house "just jumped" — Luke, 2026-09-15). Wait it out.
+  if (S.vt) await S.vt.finished.catch(() => {});
   if (S.route.name === 'house' && S.route.id === id) render();
 }
 

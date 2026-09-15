@@ -513,65 +513,80 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
   display: flex; align-items: center; gap: 6px;
 }
 
-/* ---------- shortlist + house pages (2026-09-14) ---------- */
+/* ---------- shortlist + house pages (2026-09-14; craft brief 2026-09-15) ----------
+   Both pages speak the queue's surface language: a card on the canvas carries
+   the separation (depth before dividers), titles sit inside surfaces the way the
+   gate form's does, and nested blocks are wells at the derived radius. */
+.surface { background: var(--card); border-radius: var(--r-card); box-shadow: var(--shadow-card); }
 .page { padding-block: 16px 0; }
 .page-head h2 { margin: 0; font-size: 1.25rem; font-weight: 650; letter-spacing: -0.01em; line-height: 1.3; }
-.page-head h2 .count { font-weight: 500; color: var(--ink-3); margin-left: 6px; font-size: 1rem; }
-.funnel { margin: 6px 0 0; font-size: 0.875rem; color: var(--ink-2); line-height: 1.5; max-width: 65ch; }
-.funnel b { font-weight: 600; color: var(--ink); }
+.page-head h2 .count { font-weight: 500; color: var(--ink-3); margin-left: 6px; font-size: 0.9375rem; }
+.funnel { margin: 4px 0 0; font-size: 0.8125rem; color: var(--ink-3); line-height: 1.5; max-width: 65ch; }   /* for the two of us; quiet on the realtor's first read */
+.funnel b { font-weight: 600; color: var(--ink-2); }
+/* a town group: header above, one card holding the rows (grouped list) */
+.sl-group { margin-top: 20px; }
 .sl-town {
-  margin: 24px 0 0; padding-bottom: 6px;
+  display: flex; align-items: baseline;
+  margin: 0 0 8px; padding-inline: 16px;
   font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
-  border-bottom: var(--border-hairline) solid var(--line);
 }
 .sl-town .count { font-weight: 500; margin-left: 4px; }
-.sl-town { display: flex; align-items: baseline; }
-.sl-town .range { margin-left: auto; font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 0.8125rem; }
-.sl { list-style: none; margin: 0; padding: 0; }
+.sl-town .range { margin-left: auto; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.sl { list-style: none; margin: 0; padding: 0; overflow: hidden; }   /* clips row hover to the card's corners */
 .sl li + li { border-top: var(--border-hairline) solid var(--line); }
 .sl-row {
-  display: flex; align-items: flex-start; gap: 10px;   /* the chevron sits on the address line, not the row's centre (Luke, 2026-09-15) */
-  padding: 12px 8px; margin-inline: -8px;     /* the highlight reaches past the text, the text stays on the grid */
-  color: inherit; text-decoration: none;
-  border-radius: var(--r-ctl);
+  position: relative;                          /* the address link stretches over the row */
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px;
   transition: background-color 150ms ease;
 }
 @media (hover: hover) and (pointer: fine) { .sl-row:hover { background: var(--well); } }
 .sl-row:active { background: var(--well); }
 .sl-main { flex: 1; min-width: 0; }
 .sl-l1 { display: flex; align-items: baseline; gap: 8px; }
-.sl-addr { font-size: 0.9375rem; font-weight: 600; line-height: 1.3; }
-.sl-est { margin-left: auto; flex: none; font-size: 0.9375rem; font-weight: 600; }
+.sl-addr { flex: 1; min-width: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }   /* the identifier leads, at the card's size */
+.sl-link { color: inherit; text-decoration: none; }
+.sl-link::after { content: ''; position: absolute; inset: 0; }   /* the whole row taps; the link's text stays just the address */
+.sl-link:focus-visible { outline: none; }
+.sl-row:has(.sl-link:focus-visible) { outline: 2px solid var(--ink); outline-offset: -2px; }
+.sl-zone { font-size: 0.8125rem; font-weight: 400; color: var(--ink-3); margin-left: 6px; white-space: nowrap; }
+.sl-est { flex: none; font-size: 0.9375rem; font-weight: 600; color: var(--ink-2); }   /* second: the figure, in the second ink */
 .sl-l2, .sl-l3 { font-size: 0.8125rem; color: var(--ink-2); margin-top: 2px; }
 .sl-l3 { color: var(--ink-3); }
+.sl-l3 .tag { vertical-align: middle; margin-right: 4px; }
 .sl-row .tag-row { margin-top: 6px; }
-.sl-row .chev { flex: none; color: var(--ink-3); margin-top: 2px; }   /* 15px/1.3 line = 19.5px; a 16px glyph centres on it at 2px; checked by eye in the render */
+.sl-row .chev { flex: none; color: var(--ink-3); margin-top: 3px; }   /* 17px/1.3 = 22px line; a 16px glyph centres on it at 3px */
 .back {
   display: inline-flex; align-items: center; gap: 4px;
   min-height: 44px; margin-left: -8px; padding-inline: 8px;
   font-size: 0.875rem; font-weight: 500; text-decoration: none; border-radius: var(--r-ctl);
 }
 @media (hover: hover) and (pointer: fine) { .back:hover { background: var(--accent-tint); } }
-.house-head h2 { margin: 4px 0 0; font-size: 1.375rem; font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; text-wrap: balance; }
-.house-head .where { margin: 2px 0 0; font-size: 0.9375rem; color: var(--ink-2); }
-.house-head .links { display: flex; margin-left: -10px; margin-top: 6px; }
+/* the house page: the card you tapped, opened up */
+.house-head { padding: 14px 16px; margin-top: 4px; }
+.house-head .hh-title { margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; text-wrap: balance; }
+.house-head .links {
+  display: flex; margin-left: -10px; margin-top: 10px; padding-top: 8px;
+  border-top: var(--border-hairline) solid var(--line);
+}
 .house-head .links a {
   font-size: 0.875rem; font-weight: 500; text-decoration: none;
   display: inline-flex; align-items: center; min-height: 44px; padding-inline: 10px; border-radius: var(--r-ctl);
 }
 @media (hover: hover) and (pointer: fine) { .house-head .links a:hover { background: var(--accent-tint); text-decoration: underline; } }
-.sec { margin-top: 24px; }
-.sec h3 { margin: 0 0 10px; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.sec { margin-top: 12px; padding: 14px 16px; }
+.sec h3 { margin: 0 0 10px; font-size: 0.875rem; font-weight: 600; color: var(--ink-2); }   /* the gate form's title style */
+.sec .sub { margin: -6px 0 10px; font-size: 0.8125rem; color: var(--ink-3); line-height: 1.5; }
 .sec p { margin: 0; font-size: 0.9375rem; color: var(--ink-2); line-height: 1.5; max-width: 65ch; }
 .sec p + p { margin-top: 6px; }
 .sec p b { font-weight: 600; color: var(--ink); }
 .sec .fhint { margin-top: 8px; line-height: 1.5; }
-.call { background: var(--card); border-radius: var(--r-card); box-shadow: var(--shadow-card); padding: 14px 16px; }   /* the card's padding */
-.call + .call { margin-top: 10px; }
+.call { background: var(--well); border-radius: var(--r-well); padding: 12px 14px; }   /* a well in the card, like the gate form */
+.call + .call { margin-top: 8px; }
 .call-head { font-size: 0.9375rem; color: var(--ink-2); }
 .call-head b { font-weight: 600; color: var(--ink); }
 .hchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.hchip { font-size: 0.75rem; font-weight: 500; padding: 3px 8px; border-radius: 5px; background: var(--well); color: var(--ink-3); }
+.hchip { font-size: 0.6875rem; font-weight: 600; padding: 3px 8px; border-radius: 5px; background: var(--card); color: var(--ink-3); }
 .hchip.pass { background: var(--good-tint); color: var(--good-fg); }
 .hchip.fail { background: var(--bad-tint); color: var(--bad-fg); }
 .call blockquote {
@@ -580,16 +595,14 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 }
 .axes-line { margin-top: 6px; font-size: 0.8125rem; color: var(--ink-3); }
 table.dt { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.875rem; }
-.dt caption { text-align: left; caption-side: top; padding-bottom: 6px; }
-.page-head h2, .house-head h2 { outline: none; }   /* focus lands here on a route change; the ring would read as a control */
 .dt th, .dt td { text-align: left; padding: 8px 8px 8px 0; border-bottom: var(--border-hairline) solid var(--line); vertical-align: top; }
-.dt th { font-weight: 500; color: var(--ink-3); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.dt th { font-weight: 600; color: var(--ink-3); font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .dt th.r, .dt td.r { text-align: right; }
 .dt th:last-child, .dt td:last-child { padding-right: 0; }
 .dt tr.me td { font-weight: 600; color: var(--ink); }
 .dt td.lead { color: var(--ink); font-weight: 600; }     /* the figure that sticks (Luke): sale price */
 .dt td.quiet { color: var(--ink-3); }
-.dt td .mark { font-weight: 500; color: var(--ink-3); font-size: 0.75rem; margin-left: 6px; white-space: nowrap; }
+.dt td .mark { font-weight: 500; color: var(--ink-3); font-size: 0.6875rem; margin-left: 6px; white-space: nowrap; }
 .dt tbody tr:last-child td { border-bottom: 0; }
 
 /* ---------- done / empty / skeleton ---------- */
@@ -1216,7 +1229,7 @@ function tagRow(p, done, page) {   // page: 'house' | 'row' (a shortlist row ski
   if (t === 'over') tags.push('<span class="tag">Above ceiling</span>');
   const sold = S.sold.get(p.id);
   if (sold) tags.push(`<span class="tag">Sold ${sold.on ? monthYear(sold.on) : ''}</span>`);
-  else if (p.on_market === true && page) tags.push('<span class="tag listed">Listed</span>');
+  else if (p.on_market === true && page === 'house') tags.push('<span class="tag listed">Listed</span>');   // a shortlist row carries it on the memory line
   if (isMainRoad(p)) tags.push(`<span class="tag warn">Main rd${p.road_aadt ? ' · ' + fmtK(p.road_aadt) + '/day' : ''}</span>`);
   const ac = acres(p.lot_size);
   if (ac != null && ac < 0.30) tags.push('<span class="tag">Small lot</span>');
@@ -1377,20 +1390,20 @@ const specsLine = p => `<p class="specs num"><span>${p.bedrooms ?? '?'}bd · ${f
 
 function shortlistRow(p) {
   const lead = latestEval(p.id);
-  const l3 = [hurdleSummary(lead.hurdles, p.on_market === true), shortDate(lead.date_recorded)].filter(Boolean);
+  const onMkt = p.on_market === true;
+  const l3 = [hurdleSummary(lead.hurdles, onMkt), shortDate(lead.date_recorded)].filter(Boolean);
   const ac = accord(p.id);
   if (ac) l3.push(ac);                            // both have called it: one word says whether they agree
-  const l2 = [];
-  if (p.town === 'Beverly' && p.neighborhood) l2.push(esc(p.neighborhood));
-  l2.push(`${p.bedrooms ?? '?'}bd · ${fmtBa(p.bathrooms)}ba`, `${fmtNum(p.sqft)} sqft`, `${acres(p.lot_size)?.toFixed(2) ?? '?'} ac`, `${p.year_built ?? '?'}`);
+  const zone = p.town === 'Beverly' && p.neighborhood ? `<span class="sl-zone">${esc(p.neighborhood)}</span>` : '';
+  const l2 = [`${p.bedrooms ?? '?'}bd · ${fmtBa(p.bathrooms)}ba`, `${fmtNum(p.sqft)} sqft`, `${acres(p.lot_size)?.toFixed(2) ?? '?'} ac`, `${p.year_built ?? '?'}`];
   const tags = tagRow(p, true, 'row');
-  return `<li><a class="sl-row" href="#house/${p.id}">
+  return `<li class="sl-row">
     <div class="sl-main">
-      <div class="sl-l1"><span class="sl-addr">${esc(displayAddr(p.address))}</span><span class="sl-est num">${money(p.price_estimate)}</span></div>
+      <div class="sl-l1"><span class="sl-addr"><a class="sl-link" href="#house/${p.id}">${esc(displayAddr(p.address))}</a>${zone}</span><span class="sl-est num">${money(p.price_estimate)}</span></div>
       <div class="sl-l2 num">${l2.join(' · ')}</div>
-      <div class="sl-l3 num">${l3.join(' · ')}</div>
+      <div class="sl-l3 num">${onMkt ? '<span class="tag listed">Listed</span> · ' : ''}${l3.join(' · ')}</div>
       ${tags}
-    </div>${CHEV}</a></li>`;
+    </div>${CHEV}</li>`;
 }
 
 function renderShortlist() {
@@ -1423,7 +1436,7 @@ function renderShortlist() {
       const ests = rows.map(p => p.price_estimate).filter(x => x != null);
       const range = ests.length ? (ests.length > 1 && money(Math.min(...ests)) !== money(Math.max(...ests))
         ? `${money(Math.min(...ests))}–${money(Math.max(...ests))}` : money(Math.min(...ests))) : '';
-      h += `<h3 class="sl-town">${t}<span class="count num">${rows.length}</span>${range ? `<span class="range num">${range}</span>` : ''}</h3><ul class="sl">${rows.map(shortlistRow).join('')}</ul>`;
+      h += `<section class="sl-group"><h3 class="sl-town">${t}<span class="count num">${rows.length}</span>${range ? `<span class="range num">${range}</span>` : ''}</h3><ul class="sl surface">${rows.map(shortlistRow).join('')}</ul></section>`;
     }
   }
   page.innerHTML = h;
@@ -1460,8 +1473,8 @@ function renderHouse(id) {
   const l = links(p);
   const saleYr = p.last_sale_date ? p.last_sale_date.slice(0, 4) : null;
   const where = p.town + (p.town === 'Beverly' && p.neighborhood ? ' · ' + esc(p.neighborhood) : '');
-  let h = `${back}<header class="house-head">
-    <h2 tabindex="-1">${esc(displayAddr(p.address))}</h2><p class="where">${where}</p>
+  let h = `${back}<header class="house-head surface">
+    <div class="card-head"><h2 class="hh-title" tabindex="-1">${esc(displayAddr(p.address))}</h2><span class="town">${where}</span></div>
     <div class="price-row">${priceRow(p)}</div>
     ${specsLine(p)}
     ${tagRow(p, true, 'house')}
@@ -1475,7 +1488,7 @@ function renderHouse(id) {
 
   // Our call — every evaluation on record in date order, in the words saved (Luke, brief 2026-09-15).
   const rows = evalsFor(id).slice().sort((a, b) => a.date_recorded.localeCompare(b.date_recorded));
-  h += `<section class="sec"><h3>Our call</h3>`;
+  h += `<section class="sec surface"><h3>Our call</h3>`;
   if (!rows.length) h += `<p>No evaluation on record.</p>`;
   for (const r of rows) {
     h += `<div class="call"><div class="call-head"><b>${VERDICT_LABEL[r.verdict] || esc(r.verdict)}</b>, ${longDate(r.date_recorded)} · ${esc(personName(r))}</div>`;
@@ -1492,15 +1505,15 @@ function renderHouse(id) {
   h += `</section>`;
 
   // Cost — the estimate against the ceiling; tax on the ASSESSED value at each town's rate.
-  h += `<section class="sec"><h3>Cost</h3>`;
+  h += `<section class="sec surface"><h3>Cost</h3>`;
   if (p.price_estimate != null && S.ceiling) {
     const d = S.ceiling - p.price_estimate;
-    h += `<p class="num"><b>${money(p.price_estimate)}</b> estimate, ${d >= 0 ? `${money(d)} under` : `${money(-d)} over`} the ${money(S.ceiling)} ceiling.</p>`;
+    h += `<p class="num"><b>${money(p.price_estimate)}</b> est · ${d >= 0 ? `${money(d)} under` : `${money(-d)} over`} the ${money(S.ceiling)} ceiling</p>`;   // figures in a row, not a sentence
   }
   const tax = annualTax(p.assessed_value, p.town);
   const fy = S.taxRates[p.town]?.fiscal_year;
   if (tax != null) {
-    h += `<p class="num">Assessed ${moneyFull(p.assessed_value)}. At ${p.town}&rsquo;s FY${fy} rate that is <b>${moneyFull(tax)}</b> a year in property tax.</p>`;
+    h += `<p class="num">Assessed ${moneyFull(p.assessed_value)} · <b>${moneyFull(tax)}</b> a year at ${p.town}&rsquo;s FY${fy} rate</p>`;
     const towns = [...new Set([...TOWNS, p.town, 'Peabody'])].filter(t => S.taxRates[t]);   // Peabody = what Luke and Michelle pay now (brief 2026-09-15)
     h += `<table class="dt num"><thead><tr><th scope="col">Town</th><th scope="col" class="r">Rate / $1,000</th><th scope="col" class="r">Tax on this value</th></tr></thead><tbody>` +
       towns.map(t => `<tr${t === p.town ? ' class="me"' : ''}><td>${t}${t === 'Peabody' ? '<span class="mark">now</span>' : ''}</td>` +
@@ -1513,33 +1526,33 @@ function renderHouse(id) {
   // Street — context line, then recent sales on the same street from the assessor roll.
   const street = streetOf(p.address);
   const sm = S.streets.get(skey(p)), sf = S.forms.get(skey(p));
-  h += `<section class="sec"><h3>Street</h3>`;
+  const since = new Date().getFullYear() - 10;
+  h += `<section class="sec surface"><h3>Sales on ${esc(displayAddr(street))} since ${since}</h3>`;   // the table names its own frame
   const sbits = [];
   if (sf && sf.form !== 'stub') sbits.push(FORM_LABELS[sf.form] || sf.form);
   if (sm) { sbits.push(`${sm.parcel_count} lots`); if (sm.median_lot_sqft) sbits.push(`${(sm.median_lot_sqft / 43560).toFixed(2)} ac median lot`); if (sm.median_far != null) sbits.push(`median FAR ${(+sm.median_far).toFixed(2)}`); if (sm.median_year_built) sbits.push(`built around ${sm.median_year_built}`); }
   if (p.road_fclass != null) sbits.push(isMainRoad(p) ? `main road${p.road_aadt ? ', about ' + fmtK(p.road_aadt) + ' cars a day' : ''}` : 'residential road');
-  h += `<p class="num"><b>${esc(displayAddr(street))}</b>${sbits.length ? ': ' + sbits.join(' · ') : ''}</p>`;
+  if (sbits.length) h += `<p class="sub num">${sbits.join(' · ')}</p>`;
   const sales = S.streetSales.get(skey(p));
-  const since = new Date().getFullYear() - 10;
-  if (!sales) h += `<p class="fhint">Loading sales on ${esc(displayAddr(street))}…</p>`;
+  if (!sales) h += `<p class="fhint">Loading…</p>`;
   else if (sales.error) h += `<p class="fhint">Couldn&rsquo;t load sales — ${esc(sales.error)}</p>`;
   else {
     const recent = sales.filter(r => r.last_sale_price > 100000 && r.last_sale_date && +r.last_sale_date.slice(0, 4) >= since)
       .sort((a, b) => b.last_sale_date.localeCompare(a.last_sale_date)).slice(0, 15);
     if (!recent.length) h += `<p class="fhint">No sales on this street since ${since} in the assessor roll.</p>`;
-    else h += `<table class="dt num"><caption class="fhint">Sales on ${esc(displayAddr(street))} since ${since}, from the assessor roll (last sale per parcel)</caption>
+    else h += `<table class="dt num">
       <thead><tr><th scope="col">No.</th><th scope="col">Sold</th><th scope="col" class="r">Price</th><th scope="col" class="r">Sqft</th><th scope="col" class="r">$/sqft</th></tr></thead><tbody>` +
       recent.map(r => `<tr${r.id === p.id ? ' class="me"' : ''}><td>${esc(r.address.replace(/\s.*$/, ''))}${r.id === p.id ? '<span class="mark">this house</span>' : ''}</td>` +
         `<td>${monthYear(r.last_sale_date)}</td><td class="r lead">${money(r.last_sale_price)}</td><td class="r">${fmtNum(r.sqft)}</td><td class="r quiet">${r.sqft ? '$' + Math.round(r.last_sale_price / r.sqft) : '—'}</td></tr>`).join('') +
-      `</tbody></table>`;
+      `</tbody></table><p class="fhint">From the assessor roll: the last sale on each parcel.</p>`;
   }
   h += `</section>`;
 
   // Listing history — only when there is one.
   const ev = S.events.get(id);
-  if (ev === undefined && !DEMO) h += `<section class="sec"><h3>Listing history</h3><p class="fhint">Loading…</p></section>`;
+  if (ev === undefined && !DEMO) h += `<section class="sec surface"><h3>Listing history</h3><p class="fhint">Loading…</p></section>`;
   else if (ev?.length) {
-    h += `<section class="sec"><h3>Listing history</h3><table class="dt num"><thead><tr><th scope="col">Date</th><th scope="col">Event</th><th scope="col" class="r">Price</th></tr></thead><tbody>` +
+    h += `<section class="sec surface"><h3>Listing history</h3><table class="dt num"><thead><tr><th scope="col">Date</th><th scope="col">Event</th><th scope="col" class="r">Price</th></tr></thead><tbody>` +
       ev.slice().reverse().map(e => `<tr><td>${longDate(e.observed_on)}</td><td>${EVENT_LABEL[e.event] || esc(e.event)}</td><td class="r">${e.list_price != null ? moneyFull(e.list_price) : '—'}</td></tr>`).join('') +
       `</tbody></table></section>`;
   }

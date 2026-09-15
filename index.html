@@ -554,6 +554,8 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 .sl-l2, .sl-l3 { font-size: 0.8125rem; color: var(--ink-2); margin-top: 2px; }
 .sl-l3 { color: var(--ink-3); }
 .sl-l3 .tag { vertical-align: middle; margin-right: 4px; }
+.sl-l3 .sl-hurdles { display: inline-flex; gap: 4px; vertical-align: middle; margin-right: 2px; }
+.sl-l3 .hchip { line-height: 1.2; }
 .sl-row .tag-row { margin-top: 6px; }
 .sl-row .chev { flex: none; color: var(--ink-3); margin-top: 3px; }   /* 17px/1.3 = 22px line; a 16px glyph centres on it at 3px */
 .back {
@@ -1376,10 +1378,13 @@ function hurdleSummary(h, onMkt) {
   if (onMkt) return '';                            // a listing evaluation has no Street View hurdles
   const { pass, fail } = hurdleCounts(h);
   if (!pass && !fail) return 'no hurdles scored';
-  const bits = [];
-  if (pass) bits.push(`${pass} cleared`);
-  if (fail) bits.push(`${fail} failed`);
-  return bits.join(' · ');
+  // The house page's chips, with the count in place of the label (Luke,
+  // feel-iteration 2026-09-15): the same thing looks the same on both pages,
+  // and there is less to read. The glyph keeps the state off colour alone.
+  const chips = [];
+  if (pass) chips.push(`<span class="hchip pass">${pass} ✓</span>`);
+  if (fail) chips.push(`<span class="hchip fail">${fail} ✕</span>`);
+  return `<span class="sl-hurdles">${chips.join('')}</span>`;
 }
 // Within a town: most cleared first, then fewest failed, then estimate (Luke, brief 2026-09-15). No score is shown.
 function rowOrder(a, b) {

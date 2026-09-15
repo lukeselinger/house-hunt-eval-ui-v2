@@ -525,10 +525,12 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
   border-bottom: var(--border-hairline) solid var(--line);
 }
 .sl-town .count { font-weight: 500; margin-left: 4px; }
+.sl-town { display: flex; align-items: baseline; }
+.sl-town .range { margin-left: auto; font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 0.8125rem; }
 .sl { list-style: none; margin: 0; padding: 0; }
 .sl li + li { border-top: var(--border-hairline) solid var(--line); }
 .sl-row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: flex-start; gap: 10px;   /* the chevron sits on the address line, not the row's centre (Luke, 2026-09-15) */
   padding: 12px 8px; margin-inline: -8px;     /* the highlight reaches past the text, the text stays on the grid */
   color: inherit; text-decoration: none;
   border-radius: var(--r-ctl);
@@ -543,7 +545,7 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 .sl-l2, .sl-l3 { font-size: 0.8125rem; color: var(--ink-2); margin-top: 2px; }
 .sl-l3 { color: var(--ink-3); }
 .sl-row .tag-row { margin-top: 6px; }
-.sl-row .chev { flex: none; color: var(--ink-3); }
+.sl-row .chev { flex: none; color: var(--ink-3); margin-top: 2px; }   /* 15px/1.3 line = 19.5px; a 16px glyph centres on it at 2px; checked by eye in the render */
 .back {
   display: inline-flex; align-items: center; gap: 4px;
   min-height: 44px; margin-left: -8px; padding-inline: 8px;
@@ -585,6 +587,8 @@ table.dt { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 
 .dt th.r, .dt td.r { text-align: right; }
 .dt th:last-child, .dt td:last-child { padding-right: 0; }
 .dt tr.me td { font-weight: 600; color: var(--ink); }
+.dt td.lead { color: var(--ink); font-weight: 600; }     /* the figure that sticks (Luke): sale price */
+.dt td.quiet { color: var(--ink-3); }
 .dt td .mark { font-weight: 500; color: var(--ink-3); font-size: 0.75rem; margin-left: 6px; white-space: nowrap; }
 .dt tbody tr:last-child td { border-bottom: 0; }
 
@@ -873,7 +877,6 @@ const S = {
   route: parseRoute(),
   view: parseRoute().name === 'on' ? 'on' : 'off',
   props: [],                 // enriched property rows (the watchlist)
-  extras: [],                // evaluated homes outside the watchlist (sold, above the ceiling, other towns)
   evals: new Map(),          // property_id -> evaluations_public rows, date asc
   taxRates: {},              // town -> latest {fiscal_year, residential_rate}
   events: new Map(),         // property_id -> listing_events rows, asc (on-market + shortlist ids at load; a house page fetches its own)
@@ -997,19 +1000,14 @@ async function loadLive() {
   const soldIds = new Set(sold.map(r => r.property_id));
   const kept = props.filter(p => !soldIds.has(p.id));
 
-  // Evaluated homes that aren't on the watchlist any more (sold since, above
-  // the ceiling, another town): the shortlist still shows what was said.
+  // Only watchlist homes can be on the shortlist (Luke, 2026-09-15): the
+  // seed-era rows from the Notion exemplars are all sold homes outside the
+  // predicate, and an evaluated home that later sells is an event still to
+  // be designed. Their evaluations stay in the DB; they just don't render.
   const have = new Set(kept.map(p => p.id));
-  const extraIds = [...new Set(evals.map(e => e.property_id))].filter(id => !have.has(id));
-  const extras = extraIds.length ? await api('properties', {
-    id: `in.(${extraIds})`, order: 'id',
-    select: 'id,address,town,neighborhood,year_built,sqft,bedrooms,bathrooms,building_style,lot_size,' +
-            'assessed_value,price_estimate,last_sale_date,last_sale_price,on_market,road_fclass,road_aadt',
-  }) : [];
-
   const onIds = kept.filter(p => p.on_market === true).map(p => p.id);
   const byId = new Map(); for (const e of evals) (byId.get(e.property_id) || byId.set(e.property_id, []).get(e.property_id)).push(e);
-  const slIds = [...byId.keys()].filter(id => [...latestByPerson(byId.get(id)).values()].some(r => CONSIDER.has(r.verdict)));
+  const slIds = [...byId.keys()].filter(id => have.has(id) && CONSIDER.has(byId.get(id).at(-1).verdict));
   const wantIds = [...new Set([...onIds, ...slIds])];
   let events = [];
   if (wantIds.length) {
@@ -1019,7 +1017,7 @@ async function loadLive() {
       select: 'property_id,event,list_price,observed_on',
     });
   }
-  ingest({ props: kept, extras, ratios, evals, metrics, forms, events, taxRates, sold });
+  ingest({ props: kept, ratios, evals, metrics, forms, events, taxRates, sold });
 }
 
 // Latest evaluation per person for one house (rows date asc). Pre-profile
@@ -1030,9 +1028,19 @@ function latestByPerson(rows) {
   return m;
 }
 const evalsFor = id => S.evals.get(id) || [];
-const onShortlist = id => [...latestByPerson(evalsFor(id)).values()].some(r => CONSIDER.has(r.verdict));
-const allProps = () => S.props.concat(S.extras);
-const shortlist = () => allProps().filter(p => onShortlist(p.id));
+// The most recent verdict on the house decides (Luke, brief 2026-09-15).
+const latestEval = id => evalsFor(id).at(-1);
+const onShortlist = id => CONSIDER.has(latestEval(id)?.verdict);
+const allProps = () => S.props;
+const shortlist = () => S.props.filter(p => onShortlist(p.id));
+// Agreement state when both people have called the house: 'agree' | 'split' | null.
+function accord(id) {
+  const by = latestByPerson(evalsFor(id));
+  const L = by.get('Luke'), M = by.get('Michelle');
+  if (!L || !M) return null;
+  return L.verdict === M.verdict ? 'agree' : 'split';
+}
+const hurdleCounts = h => ({ pass: Object.values(h || {}).filter(v => v === 'pass').length, fail: Object.values(h || {}).filter(v => v === 'fail').length });
 // Price state from a house's listing events (rows asc: later rows overwrite).
 function indexEvents(id, rows) {
   S.events.set(id, rows);
@@ -1054,7 +1062,7 @@ function removeEval(row) {                    // a failed save
   if (row.nominated_by && !rows.some(r => r.nominated_by === row.nominated_by)) S.marks[row.nominated_by]?.delete(row.property_id);
 }
 
-function ingest({ props, extras = [], ratios, evals, metrics, forms, events, taxRates = [], sold = [] }) {
+function ingest({ props, ratios, evals, metrics, forms, events, taxRates = [], sold = [] }) {
   S.ratios = {};
   for (const r of ratios) if (!S.ratios[r.town]) S.ratios[r.town] = r; // first seen = latest
   S.taxRates = {};
@@ -1073,7 +1081,6 @@ function ingest({ props, extras = [], ratios, evals, metrics, forms, events, tax
   for (const e of events) (byId.get(e.property_id) || byId.set(e.property_id, []).get(e.property_id)).push(e);
   for (const [id, rows] of byId) indexEvents(id, rows);
   S.props = props;
-  S.extras = extras;
   S.loaded = true;
 }
 
@@ -1137,17 +1144,19 @@ function loadDemo() {
   const E = (property_id, nominated_by, verdict, date_recorded, o) => Object.assign({ property_id, nominated_by, verdict, date_recorded, hurdles: null, failure_axis: null, verbatim_reasoning: null }, o);
   const evals = [
     E(4, 'Michelle', 'would-consider', '2026-09-02T14:10:00Z', { hurdles: { main_road: 'pass', curb_appeal: 'pass', lot_size: 'pass', neighbors: 'pass', yard: 'fail', placement: 'pass' }, verbatim_reasoning: 'Cul-de-sac end lot, yard slopes hard to the back. House sits well.' }),
+    E(4, 'Luke', 'would-consider', '2026-09-05T20:00:00Z', { hurdles: { main_road: 'pass', curb_appeal: 'pass', lot_size: 'pass', yard: 'fail' }, verbatim_reasoning: 'Agree with Michelle on the yard. Would still look.' }),
+    E(11, 'Michelle', 'exclude', '2026-09-04T12:00:00Z', { hurdles: { main_road: 'pass', neighbors: 'fail' } }),
     E(6, 'Luke', 'would-consider', '2026-09-01T22:40:00Z', { hurdles: { main_road: 'pass', curb_appeal: 'pass', lot_size: 'pass', neighbors: 'pass', yard: 'pass', placement: 'pass' }, verbatim_reasoning: 'Quiet block, houses well kept. This one has the deepest lot on the street.' }),
     E(6, 'Michelle', 'defer', '2026-09-03T01:15:00Z', { hurdles: { main_road: 'pass', curb_appeal: 'fail' } }),
     E(2, 'Luke', 'exclude', '2026-09-01T22:55:00Z', { hurdles: { main_road: 'fail', neighbors: 'fail' } }),
     E(9, 'Luke', 'would-offer-now', '2026-08-30T16:00:00Z', { failure_axis: ['price'], verbatim_reasoning: 'Everything we want. Listed above where we can go, but it has sat for three weeks.' }),
-    E(11, 'Luke', 'defer', '2026-09-06T13:00:00Z', { hurdles: { main_road: 'pass', placement: 'fail' }, verbatim_reasoning: 'Sits below the road.' }),
-    E(3, null, 'would-consider', '2026-08-20T12:00:00Z', { verbatim_reasoning: 'Seed row from the walkthrough.' }),
+    E(11, 'Luke', 'would-consider', '2026-09-06T13:00:00Z', { hurdles: { main_road: 'pass', curb_appeal: 'pass', placement: 'fail' }, verbatim_reasoning: 'Sits below the road, but the Farms block is right.' }),
+    E(3, 'Luke', 'would-consider', '2026-08-20T12:00:00Z', { hurdles: { main_road: 'pass', curb_appeal: 'pass', lot_size: 'pass', neighbors: 'pass', yard: 'pass', placement: 'pass' }, verbatim_reasoning: 'The one to beat on Larch Row.' }),
   ];
   const marks = evals;
   const taxRates = [
     { town: 'Wenham', fiscal_year: 2026, residential_rate: 15.99 }, { town: 'Hamilton', fiscal_year: 2026, residential_rate: 15.04 },
-    { town: 'Beverly', fiscal_year: 2026, residential_rate: 10.81 },
+    { town: 'Beverly', fiscal_year: 2026, residential_rate: 10.81 }, { town: 'Peabody', fiscal_year: 2026, residential_rate: 9.47 },
   ];
   S.ceiling = 1300000; // demo fixture value
   ingest({ props, ratios, evals, metrics, forms, events, taxRates });
@@ -1347,26 +1356,30 @@ function formValid(p, d) {
 /* ================= shortlist + house pages ================= */
 const CHEV = '<svg class="chev" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const personName = r => r.nominated_by || 'earlier note';
-function hurdleSummary(h) {
-  if (!h) return '';
-  const pass = Object.values(h).filter(v => v === 'pass').length;
-  const failed = Object.entries(h).filter(([, v]) => v === 'fail').map(([k]) => HURDLES.find(x => x[0] === k)?.[1].toLowerCase() || k);
-  const bits = [`${pass} cleared`];
-  if (failed.length) bits.push(`${failed.join(', ')} failed`);
-  return bits.join(', ');
+// The row's memory line (Luke, brief 2026-09-15): counts, not names — the
+// trigger to click through; the names live on the house page. A blank hurdle
+// is neither cleared nor failed and is not shown anywhere.
+function hurdleSummary(h, onMkt) {
+  if (onMkt) return '';                            // a listing evaluation has no Street View hurdles
+  const { pass, fail } = hurdleCounts(h);
+  if (!pass && !fail) return 'no hurdles scored';
+  const bits = [];
+  if (pass) bits.push(`${pass} cleared`);
+  if (fail) bits.push(`${fail} failed`);
+  return bits.join(' · ');
+}
+// Within a town: most cleared first, then fewest failed, then estimate (Luke, brief 2026-09-15). No score is shown.
+function rowOrder(a, b) {
+  const A = hurdleCounts(latestEval(a.id)?.hurdles), B = hurdleCounts(latestEval(b.id)?.hurdles);
+  return (B.pass - A.pass) || (A.fail - B.fail) || ((a.price_estimate ?? 9e9) - (b.price_estimate ?? 9e9));
 }
 const specsLine = p => `<p class="specs num"><span>${p.bedrooms ?? '?'}bd · ${fmtBa(p.bathrooms)}ba</span><span>${fmtNum(p.sqft)} sqft</span><span>${acres(p.lot_size)?.toFixed(2) ?? '?'} ac</span><span>${p.year_built ?? '?'}</span><span>${tenureYears(p) != null ? tenureYears(p) + ' yr' : '—'}</span></p>`;
 
 function shortlistRow(p) {
-  const latest = [...latestByPerson(evalsFor(p.id)).values()];
-  const considers = latest.filter(r => CONSIDER.has(r.verdict)).sort((a, b) => b.date_recorded.localeCompare(a.date_recorded));
-  const others = latest.filter(r => !CONSIDER.has(r.verdict));
-  const lead = considers[0];
-  const l3 = [VERDICT_LABEL[lead.verdict]];
-  for (const r of considers) l3.push(`${esc(personName(r))}, ${shortDate(r.date_recorded)}`);
-  const hs = hurdleSummary(lead.hurdles);
-  if (hs) l3.push(hs);
-  for (const r of others) l3.push(`${esc(personName(r))}: ${VERDICT_LABEL[r.verdict]?.toLowerCase() || r.verdict}`);
+  const lead = latestEval(p.id);
+  const l3 = [hurdleSummary(lead.hurdles, p.on_market === true), shortDate(lead.date_recorded)].filter(Boolean);
+  const ac = accord(p.id);
+  if (ac) l3.push(ac);                            // both have called it: one word says whether they agree
   const l2 = [];
   if (p.town === 'Beverly' && p.neighborhood) l2.push(esc(p.neighborhood));
   l2.push(`${p.bedrooms ?? '?'}bd · ${fmtBa(p.bathrooms)}ba`, `${fmtNum(p.sqft)} sqft`, `${acres(p.lot_size)?.toFixed(2) ?? '?'} ac`, `${p.year_built ?? '?'}`);
@@ -1375,7 +1388,7 @@ function shortlistRow(p) {
     <div class="sl-main">
       <div class="sl-l1"><span class="sl-addr">${esc(displayAddr(p.address))}</span><span class="sl-est num">${money(p.price_estimate)}</span></div>
       <div class="sl-l2 num">${l2.join(' · ')}</div>
-      <div class="sl-l3">${l3.join(' · ')}</div>
+      <div class="sl-l3 num">${l3.join(' · ')}</div>
       ${tags}
     </div>${CHEV}</a></li>`;
 }
@@ -1384,16 +1397,17 @@ function renderShortlist() {
   const page = $('page');
   const sl = shortlist();
   // The funnel: every evaluated home lands in one bucket by its people's latest calls.
-  let consider = 0, defer = 0, out = 0;
-  for (const rows of S.evals.values()) {
-    const L = [...latestByPerson(rows).values()];
-    if (L.some(r => CONSIDER.has(r.verdict))) consider++;
-    else if (L.some(r => r.verdict === 'defer')) defer++;
-    else out++;
+  // The funnel counts watchlist homes only, by the latest verdict on each.
+  const have = new Set(S.props.map(p => p.id));
+  let consider = 0, defer = 0, out = 0, looked = 0;
+  for (const [id, rows] of S.evals) {
+    if (!have.has(id)) continue;
+    looked++;
+    const v = rows.at(-1).verdict;
+    if (CONSIDER.has(v)) consider++; else if (v === 'defer') defer++; else out++;
   }
-  const looked = S.evals.size;
   const listedSince = sl.filter(p => {
-    const t = [...latestByPerson(evalsFor(p.id)).values()].filter(r => CONSIDER.has(r.verdict)).map(r => r.date_recorded.slice(0, 10)).sort()[0];
+    const t = latestEval(p.id).date_recorded.slice(0, 10);
     return (S.events.get(p.id) || []).some(e => e.event === 'listed' && e.observed_on >= t);
   }).length;
   let h = `<header class="page-head"><h2 tabindex="-1">Shortlist<span class="count num">${sl.length}</span></h2>
@@ -1404,9 +1418,12 @@ function renderShortlist() {
   } else {
     const towns = [...TOWNS, ...[...new Set(sl.map(p => p.town))].filter(t => !TOWNS.includes(t)).sort()];
     for (const t of towns) {
-      const rows = sl.filter(p => p.town === t).sort((a, b) => (a.price_estimate ?? 9e9) - (b.price_estimate ?? 9e9));
+      const rows = sl.filter(p => p.town === t).sort(rowOrder);
       if (!rows.length) continue;
-      h += `<h3 class="sl-town">${t}<span class="count num">${rows.length}</span></h3><ul class="sl">${rows.map(shortlistRow).join('')}</ul>`;
+      const ests = rows.map(p => p.price_estimate).filter(x => x != null);
+      const range = ests.length ? (ests.length > 1 && money(Math.min(...ests)) !== money(Math.max(...ests))
+        ? `${money(Math.min(...ests))}–${money(Math.max(...ests))}` : money(Math.min(...ests))) : '';
+      h += `<h3 class="sl-town">${t}<span class="count num">${rows.length}</span>${range ? `<span class="range num">${range}</span>` : ''}</h3><ul class="sl">${rows.map(shortlistRow).join('')}</ul>`;
     }
   }
   page.innerHTML = h;
@@ -1456,15 +1473,16 @@ function renderHouse(id) {
       <a href="${l.map}" target="_blank" rel="noopener">Map</a>
     </div></header>`;
 
-  // Our call — every evaluation on record, newest first, in the words saved.
-  const rows = evalsFor(id).slice().sort((a, b) => b.date_recorded.localeCompare(a.date_recorded));
+  // Our call — every evaluation on record in date order, in the words saved (Luke, brief 2026-09-15).
+  const rows = evalsFor(id).slice().sort((a, b) => a.date_recorded.localeCompare(b.date_recorded));
   h += `<section class="sec"><h3>Our call</h3>`;
   if (!rows.length) h += `<p>No evaluation on record.</p>`;
   for (const r of rows) {
-    h += `<div class="call"><div class="call-head"><b>${VERDICT_LABEL[r.verdict] || esc(r.verdict)}</b> · ${esc(personName(r))}, ${longDate(r.date_recorded)}</div>`;
-    if (r.hurdles) h += `<div class="hchips">${HURDLES.map(([k, label]) => {
+    h += `<div class="call"><div class="call-head"><b>${VERDICT_LABEL[r.verdict] || esc(r.verdict)}</b>, ${longDate(r.date_recorded)} · ${esc(personName(r))}</div>`;
+    const scored = HURDLES.filter(([k]) => r.hurdles?.[k] === 'pass' || r.hurdles?.[k] === 'fail');   // blanks are not memorable: not shown
+    if (scored.length) h += `<div class="hchips">${scored.map(([k, label]) => {
       const v = r.hurdles[k];
-      return `<span class="hchip${v === 'pass' ? ' pass' : v === 'fail' ? ' fail' : ''}">${label}${v === 'pass' ? ' ✓' : v === 'fail' ? ' ✕' : ''}</span>`;
+      return `<span class="hchip ${v}">${label} ${v === 'pass' ? '✓' : '✕'}</span>`;
     }).join('')}</div>`;
     if (r.failure_axis?.length && !(r.failure_axis.length === 1 && r.failure_axis[0] === 'none'))
       h += `<p class="axes-line">Fails on: ${r.failure_axis.map(a => AXIS_LABEL[a]?.toLowerCase() || a).join(', ')}</p>`;
@@ -1483,9 +1501,9 @@ function renderHouse(id) {
   const fy = S.taxRates[p.town]?.fiscal_year;
   if (tax != null) {
     h += `<p class="num">Assessed ${moneyFull(p.assessed_value)}. At ${p.town}&rsquo;s FY${fy} rate that is <b>${moneyFull(tax)}</b> a year in property tax.</p>`;
-    const towns = [...new Set([...TOWNS, p.town])].filter(t => S.taxRates[t]);
+    const towns = [...new Set([...TOWNS, p.town, 'Peabody'])].filter(t => S.taxRates[t]);   // Peabody = what Luke and Michelle pay now (brief 2026-09-15)
     h += `<table class="dt num"><thead><tr><th scope="col">Town</th><th scope="col" class="r">Rate / $1,000</th><th scope="col" class="r">Tax on this value</th></tr></thead><tbody>` +
-      towns.map(t => `<tr${t === p.town ? ' class="me"' : ''}><td>${t}</td>` +
+      towns.map(t => `<tr${t === p.town ? ' class="me"' : ''}><td>${t}${t === 'Peabody' ? '<span class="mark">now</span>' : ''}</td>` +
         `<td class="r">$${parseFloat(S.taxRates[t].residential_rate).toFixed(2)}</td><td class="r">${moneyFull(annualTax(p.assessed_value, t))}</td></tr>`).join('') +
       `</tbody></table>
       <p class="fhint">Same assessed value, each town&rsquo;s FY${fy} residential rate. Towns assess on their own, so this compares rates, not what the house would be assessed at elsewhere.</p>`;
@@ -1512,7 +1530,7 @@ function renderHouse(id) {
     else h += `<table class="dt num"><caption class="fhint">Sales on ${esc(displayAddr(street))} since ${since}, from the assessor roll (last sale per parcel)</caption>
       <thead><tr><th scope="col">No.</th><th scope="col">Sold</th><th scope="col" class="r">Price</th><th scope="col" class="r">Sqft</th><th scope="col" class="r">$/sqft</th></tr></thead><tbody>` +
       recent.map(r => `<tr${r.id === p.id ? ' class="me"' : ''}><td>${esc(r.address.replace(/\s.*$/, ''))}${r.id === p.id ? '<span class="mark">this house</span>' : ''}</td>` +
-        `<td>${monthYear(r.last_sale_date)}</td><td class="r">${money(r.last_sale_price)}</td><td class="r">${fmtNum(r.sqft)}</td><td class="r">${r.sqft ? '$' + Math.round(r.last_sale_price / r.sqft) : '—'}</td></tr>`).join('') +
+        `<td>${monthYear(r.last_sale_date)}</td><td class="r lead">${money(r.last_sale_price)}</td><td class="r">${fmtNum(r.sqft)}</td><td class="r quiet">${r.sqft ? '$' + Math.round(r.last_sale_price / r.sqft) : '—'}</td></tr>`).join('') +
       `</tbody></table>`;
   }
   h += `</section>`;

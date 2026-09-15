@@ -567,12 +567,9 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
    origin-less arrivals (deep link, reload) get the instant switch. */
 .vt-row  { view-transition-name: row; }
 .vt-addr { view-transition-name: addr; }
-::view-transition-group(*), ::view-transition-old(root), ::view-transition-new(root) {
-  animation-duration: 320ms; animation-timing-function: var(--ease-travel);
-}
-:root.vt-back::view-transition-group(*), :root.vt-back::view-transition-old(root), :root.vt-back::view-transition-new(root) {
-  animation-duration: 240ms;
-}
+::view-transition-group(*) { animation-duration: 320ms; animation-timing-function: var(--ease-travel); }   /* the move */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 320ms; animation-timing-function: ease; }   /* the fades keep pace with the box; opacity wants ease, not the sheet curve (review 2026-09-15) */
+:root.vt-back::view-transition-group(*), :root.vt-back::view-transition-old(root), :root.vt-back::view-transition-new(root) { animation-duration: 240ms; }
 ::view-transition-image-pair(row) { overflow: clip; }
 ::view-transition-old(row), ::view-transition-new(row) {
   width: 100%; height: 100%; object-fit: none; object-position: top left;   /* reveal, never stretch: the head is uncovered as the box grows */

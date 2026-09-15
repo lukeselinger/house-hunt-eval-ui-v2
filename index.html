@@ -67,6 +67,7 @@
      600-900px collapse into the first 90ms. Quad ease-out spreads it across
      the full 300ms — same durations, only the easing changed. */
   --ease-exit: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-travel: cubic-bezier(0.32, 0.72, 0, 1);   /* the sheet curve: a box that travels (motion brief 3, 2026-09-15); --ease-exit is for a collapse in place */
 }
 @media (min-resolution: 192dpi) {
   :root { --border-hairline: 0.5px; }
@@ -537,7 +538,7 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 .sl-main { flex: 1; min-width: 0; }
 .sl-l1 { display: flex; align-items: baseline; gap: 8px; }
 .sl-addr { flex: 1; min-width: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }   /* the identifier leads, at the card's size */
-.sl-link { color: inherit; text-decoration: none; }
+.sl-link { display: inline-block; color: inherit; text-decoration: none; }   /* inline-block: one box the width of its text, the shared element on the way to the house page */
 .sl-link::after { content: ''; position: absolute; inset: 0; }   /* the whole row taps; the link's text stays just the address */
 .sl-link:focus-visible { outline: none; }
 .sl-row:has(.sl-link:focus-visible) { outline: 2px solid var(--ink); outline-offset: -2px; }
@@ -558,6 +559,30 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 @media (hover: hover) and (pointer: fine) { .back:hover { background: var(--accent-tint); } }
 /* the house page: the card you tapped, opened up */
 .house-head { padding: 14px 16px; margin-top: 4px; }
+/* Row → house page (motion brief 3, Luke 2026-09-15): the tapped row's box grows
+   into the head surface with the address pinned inside it; everything else
+   crossfades in the box; the list fades out around it. Same-document View
+   Transitions; the router tags the two elements for one navigation only.
+   Forward 320ms, Back 240ms on --ease-travel. Browsers without the API and
+   origin-less arrivals (deep link, reload) get the instant switch. */
+.vt-row  { view-transition-name: row; }
+.vt-addr { view-transition-name: addr; }
+::view-transition-group(*), ::view-transition-old(root), ::view-transition-new(root) {
+  animation-duration: 320ms; animation-timing-function: var(--ease-travel);
+}
+:root.vt-back::view-transition-group(*), :root.vt-back::view-transition-old(root), :root.vt-back::view-transition-new(root) {
+  animation-duration: 240ms;
+}
+::view-transition-image-pair(row) { overflow: clip; }
+::view-transition-old(row), ::view-transition-new(row) {
+  width: 100%; height: 100%; object-fit: none; object-position: top left;   /* reveal, never stretch: the head is uncovered as the box grows */
+}
+/* addr keeps the default image sizing: both snapshots are the same text at the
+   same size, and the default places ink overflow (a focus ring) where it belongs */
+@media (prefers-reduced-motion: reduce) {
+  /* the router assigns no row/addr names under reduced motion: a 150ms crossfade, no travel */
+  ::view-transition-group(*), ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 150ms; animation-timing-function: ease; }
+}
 .house-head .hh-title { margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; text-wrap: balance; }
 .house-head .links {
   display: flex; margin-left: -10px; margin-top: 10px; padding-top: 8px;
@@ -2052,11 +2077,35 @@ window.addEventListener('hashchange', () => {
   S.route = parseRoute();
   if (isQueueRoute(S.route)) S.view = S.route.name;
   if (!S.loaded) return;
-  render();
-  if (S.route.name === 'house') { scrollTo(0, 0); loadHouse(S.route.id); }
-  else if (S.route.name === 'shortlist' && prev.name === 'house') scrollTo(0, S.slScroll);   // back where you were in the list
-  else if (isQueueRoute(S.route) !== isQueueRoute(prev)) scrollTo(0, 0);
-  if (!isQueueRoute(S.route)) $('page').querySelector('h2')?.focus({ preventScroll: true });   // the tapped link left with the list; land on the heading
+  const route = S.route;
+  const update = () => {
+    render();
+    if (route.name === 'house') { scrollTo(0, 0); loadHouse(route.id); }
+    else if (route.name === 'shortlist' && prev.name === 'house') scrollTo(0, S.slScroll);   // back where you were in the list
+    else if (isQueueRoute(route) !== isQueueRoute(prev)) scrollTo(0, 0);
+    if (!isQueueRoute(route)) $('page').querySelector('h2')?.focus({ preventScroll: true });   // the tapped link left with the list; land on the heading
+  };
+  // Row → house page and back travel as one box (motion brief 3, 2026-09-15).
+  const forward = prev.name === 'shortlist' && route.name === 'house';
+  const back = prev.name === 'house' && route.name === 'shortlist';
+  if (!(forward || back) || !document.startViewTransition) { update(); return; }
+  const tag = (row, addr) => { row?.classList.add('vt-row'); addr?.classList.add('vt-addr'); };
+  const untag = () => document.querySelectorAll('.vt-row, .vt-addr').forEach(el => el.classList.remove('vt-row', 'vt-addr'));
+  const tagRow = id => { const link = document.querySelector(`.sl-link[href="#house/${id}"]`); tag(link?.closest('.sl-row'), link); };
+  const tagHead = () => tag(document.querySelector('.house-head'), document.querySelector('.house-head .hh-title'));
+  const travel = !reduced();                         // reduced motion: the root crossfade only, nothing moves
+  untag();                                           // a move started mid-move: drop the running one's tags first, or the names collide
+  S.vt?.skipTransition();
+  if (travel) forward ? tagRow(route.id) : tagHead();
+  document.documentElement.classList.toggle('vt-back', back);
+  const vt = S.vt = document.startViewTransition(() => { update(); if (travel) forward ? tagHead() : tagRow(prev.id); });
+  vt.ready.catch(() => {});                          // a skipped transition rejects here; the page is already in its new state
+  vt.finished.finally(() => {
+    if (S.vt !== vt) return;                         // a newer transition owns the tags now
+    S.vt = null;
+    untag();
+    document.documentElement.classList.remove('vt-back');
+  });
 });
 
 window.addEventListener('beforeunload', e => {

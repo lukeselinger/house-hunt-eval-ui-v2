@@ -13,13 +13,12 @@
     (forcedTheme === 'dark' || forcedTheme === 'light' ? forcedTheme : null) ||
     localStorage.getItem('hh2-theme') ||
     (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  // Sections-bar style trial (Luke, 2026-09-14: "I would like to see it both
-  // ways"): ?bar=pill or ?bar=flat sets it and is remembered. Remove once ruled.
+  // Trials that have closed: the desktop rail (reverted 2026-09-15, to return
+  // via a brief) and the phone bar style (Luke ruled pill, 2026-09-15). Clear
+  // any remembered choice from either.
   try {
-    const q = new URLSearchParams(location.search).get('bar');
-    if (q === 'pill' || q === 'flat') localStorage.setItem('hh2-bar', q);
-    document.documentElement.dataset.bar = localStorage.getItem('hh2-bar') || 'pill';   // trial default: pill (Luke, 2026-09-15)
-    localStorage.removeItem('hh2-nav');   // the desktop rail trial was reverted 2026-09-15 (to return via a brief); clear any remembered choice
+    localStorage.removeItem('hh2-nav');
+    localStorage.removeItem('hh2-bar');
   } catch (e) {}
 </script>
 <style>
@@ -62,7 +61,7 @@
   --z-sticky: 100;
   --z-screen: 200;
   --z-toast: 400;
-  --bar-h: 56px;             /* sections bar, phones only (0 at 640 and up) */
+  --bar-h: 62px;             /* sections bar, phones only: 52 tall + the 10px it floats (0 at 640 and up) */
   /* saved-card exit curve. Feel-iteration 1 (Luke, 2026-09-11: "way too fast,
      I just saw the list jump"): the expo curve (0.19,1,0.22,1) put ~90% of a
      600-900px collapse into the first 90ms. Quad ease-out spreads it across
@@ -192,43 +191,32 @@ a { color: var(--accent-strong); text-decoration-thickness: from-font; text-unde
   .sections a:hover { background: var(--well); }
 }
 @media (max-width: 639.98px) {
+  /* The floating pill (Luke ruled pill over flat, 2026-09-15, after two
+     feel-iterations on 09-14/15: an opaque card "seems too big and doesn't
+     read as an overlay"; then "still reads as opaque ... missing the
+     transparency and the blur of the content underneath ... no evidence of
+     any lit edge; elevation weaker in dark" — the fill had been 68% of a
+     colour matching the page, so the blur had nothing to show). A thin fill
+     (white 42% light / white 9% dark — lighter than the page so it lifts),
+     blur at the 20px performance ceiling with saturation, a gradient rim
+     brightest at the top (lit from above), a shade along the bottom for
+     thickness, and an ambient shadow that stays visible in dark because the
+     bar is lighter than the page. */
   .sections {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-sticky);
-    padding-bottom: env(safe-area-inset-bottom);
-    background: var(--bg);
-    border-top: var(--border-hairline) solid var(--line);
-  }
-  .sections a {
-    flex: 1; flex-direction: column; gap: 3px;
-    min-height: var(--bar-h); padding-inline: 8px; border-radius: 0;
-    font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.01em;
-  }
-  .sections a .count { display: none; }   /* the bar names places; counts live on the pages */
-  /* floating pill variant (?bar=pill). Feel-iteration 1 (Luke, 2026-09-14):
-     an opaque card "seems too big and doesn't read as an overlay". Feel-
-     iteration 2 (Luke, 2026-09-15, and confirmed in a headless screenshot):
-     still "reads as opaque ... missing the transparency and the blur of the
-     content underneath ... no evidence of any lit edge; elevation weaker in
-     dark". The fill was 68% of a colour that matches the page, so the blur
-     had nothing to show. Now: a thin fill (white 42% light / white 9% dark —
-     lighter than the page so it lifts), blur at the 20px performance
-     ceiling with saturation, a gradient rim brightest at the top (lit from
-     above), a shade along the bottom for thickness, and an ambient shadow
-     that stays visible in dark because the bar is lighter than the page. */
-  [data-bar="pill"] .sections {
+    position: fixed; z-index: var(--z-sticky);
     left: 16px; right: 16px; bottom: calc(10px + env(safe-area-inset-bottom));
-    padding: 4px; padding-bottom: 4px;
+    padding: 4px;
     background: oklch(1 0 0 / 0.42);
     -webkit-backdrop-filter: blur(20px) saturate(1.8);
     backdrop-filter: blur(20px) saturate(1.8);
-    border: 0; border-radius: 999px;
+    border-radius: 999px;
     box-shadow:
       inset 0 -1px 0 oklch(0 0 0 / 0.05),
       0 1px 2px oklch(0 0 0 / 0.06),
       0 12px 32px -8px oklch(0 0 0 / 0.28);
     isolation: isolate;
   }
-  [data-bar="pill"] .sections::before {          /* the rim: a 1px gradient ring, brightest at the top */
+  .sections::before {          /* the rim: a 1px gradient ring, brightest at the top */
     content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
     background: linear-gradient(to bottom, oklch(1 0 0 / 0.9), oklch(1 0 0 / 0.25));
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -236,20 +224,24 @@ a { color: var(--accent-strong); text-decoration-thickness: from-font; text-unde
     mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     mask-composite: exclude;
   }
-  [data-theme="dark"][data-bar="pill"] .sections {
+  [data-theme="dark"] .sections {
     background: oklch(1 0 0 / 0.09);
     box-shadow:
       inset 0 -1px 0 oklch(0 0 0 / 0.3),
       0 1px 2px oklch(0 0 0 / 0.4),
       0 12px 32px -8px oklch(0 0 0 / 0.6);
   }
-  [data-theme="dark"][data-bar="pill"] .sections::before {
+  [data-theme="dark"] .sections::before {
     background: linear-gradient(to bottom, oklch(1 0 0 / 0.32), oklch(1 0 0 / 0.06));
   }
-  [data-bar="pill"] .sections a { position: relative; min-height: 44px; border-radius: 999px; gap: 2px; }
-  [data-bar="pill"] .sections a[aria-current="page"] { background: oklch(1 0 0 / 0.55); box-shadow: 0 1px 2px oklch(0 0 0 / 0.06); }   /* a brighter pane of the same glass; accent stays on the glyph and label */
-  [data-theme="dark"][data-bar="pill"] .sections a[aria-current="page"] { background: oklch(1 0 0 / 0.12); box-shadow: none; }
-  html[data-bar="pill"] { --bar-h: 62px; }   /* 52 tall + the 10px it floats above the edge: the last row clears it, the rest scrolls beneath */
+  .sections a {
+    position: relative; flex: 1; flex-direction: column; gap: 2px;
+    min-height: 44px; padding-inline: 8px; border-radius: 999px;
+    font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.01em;
+  }
+  .sections a[aria-current="page"] { background: oklch(1 0 0 / 0.55); box-shadow: 0 1px 2px oklch(0 0 0 / 0.06); }   /* a brighter pane of the same glass; accent stays on the glyph and label */
+  [data-theme="dark"] .sections a[aria-current="page"] { background: oklch(1 0 0 / 0.12); box-shadow: none; }
+  .sections a .count { display: none; }   /* the bar names places; counts live on the pages */
 }
 @media (min-width: 640px) {
   :root { --bar-h: 0px; }

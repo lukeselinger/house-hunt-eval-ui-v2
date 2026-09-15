@@ -67,7 +67,7 @@
      600-900px collapse into the first 90ms. Quad ease-out spreads it across
      the full 300ms — same durations, only the easing changed. */
   --ease-exit: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --ease-travel: cubic-bezier(0.32, 0.72, 0, 1);   /* the sheet curve: a box that travels (motion brief 3, 2026-09-15); --ease-exit is for a collapse in place */
+  --ease-travel: cubic-bezier(0.645, 0.045, 0.355, 1);   /* ease-in-out cubic: a box already on screen moving to a new place (feel-iteration 2, 2026-09-15 — the sheet curve front-loaded the travel and could not be registered); --ease-exit is for a collapse in place */
 }
 @media (min-resolution: 192dpi) {
   :root { --border-hairline: 0.5px; }
@@ -569,10 +569,10 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 .vt-addr { view-transition-name: addr; }
 .vt-page { view-transition-name: page; }   /* the surface around the box: the list leaving, the page body arriving */
 .vt-bar  { view-transition-name: bar; }    /* the sections bar, so it keeps painting above the moving surface */
-::view-transition-group(*) { animation-duration: 320ms; animation-timing-function: var(--ease-travel); }   /* the move */
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: 320ms; animation-timing-function: ease; }   /* the fades keep pace with the box; opacity wants ease, not the sheet curve (review 2026-09-15) */
-:root.vt-back::view-transition-group(*), :root.vt-back::view-transition-old(root), :root.vt-back::view-transition-new(root) { animation-duration: 240ms; }
-::view-transition-image-pair(row) { overflow: clip; }
+::view-transition-group(*) { animation-duration: var(--vt-dur, 320ms); animation-timing-function: var(--ease-travel); }   /* the move; --vt-dur scales with the box's travel (router) */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--vt-dur, 320ms); animation-timing-function: ease; }   /* the fades keep pace with the box; opacity wants ease, not the sheet curve (review 2026-09-15) */
+:root.vt-back::view-transition-group(*), :root.vt-back::view-transition-old(root), :root.vt-back::view-transition-new(root) { animation-duration: calc(var(--vt-dur, 320ms) * 0.75); }
+::view-transition-image-pair(row) { clip-path: inset(-40px -40px -6px -40px); }   /* the bottom edge is the reveal; the sides and top stay open so the card's shadow ring is in the frame, not popping in at the end */
 /* One displacement for everything (feel-iteration 1, Luke 2026-09-15: the page
    "had fully arrived while the row was still moving" — only the box travelled,
    the rest faded in place). The list and the page body ride the box's own
@@ -583,11 +583,11 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 @keyframes vt-fade-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes vt-fade-in  { from { opacity: 0; } to { opacity: 1; } }
 ::view-transition-group(page) { animation: none; }               /* the group sits at the new page's box; the images do the moving */
-::view-transition-image-pair(page) { overflow: clip; }
-::view-transition-old(page), ::view-transition-new(page) { width: 100%; height: 100%; object-fit: none; object-position: top left; }
-::view-transition-old(page) { animation: vt-page-out 320ms var(--ease-travel), vt-fade-out 320ms ease; }
-::view-transition-new(page) { animation: vt-page-in 320ms var(--ease-travel), vt-fade-in 320ms ease; }
-:root.vt-back::view-transition-old(page), :root.vt-back::view-transition-new(page) { animation-duration: 240ms; }
+::view-transition-image-pair(page) { clip-path: inset(0 -40px -40px -40px); }   /* clipped only at the top, under the header; the surfaces' shadows at the sides survive */
+::view-transition-old(page), ::view-transition-new(page) { width: 100%; height: 100%; object-fit: none; object-position: top left; overflow: visible; }
+::view-transition-old(page) { animation: vt-page-out var(--vt-dur, 320ms) var(--ease-travel), vt-fade-out var(--vt-dur, 320ms) ease; }
+::view-transition-new(page) { animation: vt-page-in var(--vt-dur, 320ms) var(--ease-travel), vt-fade-in var(--vt-dur, 320ms) ease; }
+:root.vt-back::view-transition-old(page), :root.vt-back::view-transition-new(page) { animation-duration: calc(var(--vt-dur, 320ms) * 0.75); }
 ::view-transition-group(bar) { animation: none; }
 ::view-transition-old(bar) { display: none; }                    /* the bar does not change: draw the new one only, no crossfade */
 /* Chrome does not animate. With the surface travelling, the header (which scrolls
@@ -598,7 +598,7 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 :root.vt-travel::view-transition-old(root) { display: none; }
 :root.vt-travel::view-transition-new(root) { animation: none; }
 ::view-transition-old(row), ::view-transition-new(row) {
-  width: 100%; height: 100%; object-fit: none; object-position: top left;   /* reveal, never stretch: the head is uncovered as the box grows */
+  width: 100%; height: 100%; object-fit: none; object-position: top left; overflow: visible;   /* reveal, never stretch: the head is uncovered as the box grows */
 }
 /* addr keeps the default image sizing: both snapshots are the same text at the
    same size, and the default places ink overflow (a focus ring) where it belongs */
@@ -2137,6 +2137,8 @@ window.addEventListener('hashchange', () => {
     const toTop = anchor();
     const dy = (fromTop != null && toTop != null) ? toTop - fromTop : 0;      // the box's travel (negative = up)
     document.documentElement.style.setProperty('--vt-dy', dy + 'px');
+    // Duration scales with the travel (animate: bigger moves take longer): 260ms + 0.45ms per px, held to 320–520. Back runs at 0.75×.
+    document.documentElement.style.setProperty('--vt-dur', Math.round(Math.min(520, Math.max(320, 260 + 0.45 * Math.abs(dy)))) + 'ms');
     document.documentElement.style.setProperty('--vt-off', (fromPage - pageTop()) + 'px');   // where the old surface sat, relative to the new
   });
   vt.ready.catch(() => {});                          // a skipped transition rejects here; the page is already in its new state

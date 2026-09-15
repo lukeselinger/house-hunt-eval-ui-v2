@@ -19,10 +19,7 @@
     const q = new URLSearchParams(location.search).get('bar');
     if (q === 'pill' || q === 'flat') localStorage.setItem('hh2-bar', q);
     document.documentElement.dataset.bar = localStorage.getItem('hh2-bar') || 'pill';   // trial default: pill (Luke, 2026-09-15)
-    // Desktop sections placement trial: ?nav=rail (Slack-style left rail) or ?nav=top (header row).
-    const n = new URLSearchParams(location.search).get('nav');
-    if (n === 'rail' || n === 'top') localStorage.setItem('hh2-nav', n);
-    document.documentElement.dataset.nav = localStorage.getItem('hh2-nav') || 'rail';
+    localStorage.removeItem('hh2-nav');   // the desktop rail trial was reverted 2026-09-15 (to return via a brief); clear any remembered choice
   } catch (e) {}
 </script>
 <style>
@@ -66,7 +63,6 @@
   --z-screen: 200;
   --z-toast: 400;
   --bar-h: 56px;             /* sections bar, phones only (0 at 640 and up) */
-  --rail-w: 72px;            /* desktop rail trial (?nav=rail) */
   /* saved-card exit curve. Feel-iteration 1 (Luke, 2026-09-11: "way too fast,
      I just saw the list jump"): the expo curve (0.19,1,0.22,1) put ~90% of a
      600-900px collapse into the first 90ms. Quad ease-out spreads it across
@@ -259,29 +255,6 @@ a { color: var(--accent-strong); text-decoration-thickness: from-font; text-unde
   :root { --bar-h: 0px; }
   .sections { margin-right: auto; margin-left: 4px; gap: 2px; }
   .brand { margin-right: 0; }
-  /* Desktop rail trial (?nav=rail, Luke 2026-09-15: "try the Slack side rail"):
-     the sections stand in a fixed left rail on a structural surface; the
-     header row keeps the wordmark, profile chip and theme; the content
-     column centres in the space that remains. No count badge — the page
-     carries its count, as on the phone. */
-  html[data-nav="rail"] body { padding-left: var(--rail-w); }
-  [data-nav="rail"] .brand { margin-right: auto; }
-  [data-nav="rail"] .sections {
-    position: fixed; left: 0; top: 0; bottom: 0; width: var(--rail-w); z-index: var(--z-sticky);
-    flex-direction: column; align-items: stretch; gap: 4px;
-    margin: 0; padding: 12px 8px calc(12px + env(safe-area-inset-bottom));
-    background: var(--well);
-  }
-  [data-nav="rail"] .sections a {
-    flex-direction: column; gap: 4px;
-    min-height: 56px; padding-inline: 4px; border-radius: var(--r-ctl);
-    font-size: 0.6875rem; letter-spacing: 0.01em;
-  }
-  [data-nav="rail"] .sections a .count { display: none; }
-  [data-nav="rail"] .sections a[aria-current="page"] { background: var(--card); box-shadow: var(--shadow-card); }
-  @media (hover: hover) and (pointer: fine) {
-    [data-nav="rail"] .sections a:hover { background: var(--card); }
-  }
 }
 
 /* ---------- tabs ---------- */

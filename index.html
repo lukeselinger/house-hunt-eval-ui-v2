@@ -567,10 +567,36 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
    origin-less arrivals (deep link, reload) get the instant switch. */
 .vt-row  { view-transition-name: row; }
 .vt-addr { view-transition-name: addr; }
+.vt-page { view-transition-name: page; }   /* the surface around the box: the list leaving, the page body arriving */
+.vt-bar  { view-transition-name: bar; }    /* the sections bar, so it keeps painting above the moving surface */
 ::view-transition-group(*) { animation-duration: 320ms; animation-timing-function: var(--ease-travel); }   /* the move */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 320ms; animation-timing-function: ease; }   /* the fades keep pace with the box; opacity wants ease, not the sheet curve (review 2026-09-15) */
 :root.vt-back::view-transition-group(*), :root.vt-back::view-transition-old(root), :root.vt-back::view-transition-new(root) { animation-duration: 240ms; }
 ::view-transition-image-pair(row) { overflow: clip; }
+/* One displacement for everything (feel-iteration 1, Luke 2026-09-15: the page
+   "had fully arrived while the row was still moving" — only the box travelled,
+   the rest faded in place). The list and the page body ride the box's own
+   delta (--vt-dy, set by the router) on the same curve and clock, so the
+   surface moves as one and the box grows inside that movement. */
+@keyframes vt-page-out { from { transform: translateY(var(--vt-off)); } to { transform: translateY(calc(var(--vt-off) + var(--vt-dy))); } }
+@keyframes vt-page-in  { from { transform: translateY(calc(-1 * var(--vt-dy))); } to { transform: translateY(0); } }
+@keyframes vt-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes vt-fade-in  { from { opacity: 0; } to { opacity: 1; } }
+::view-transition-group(page) { animation: none; }               /* the group sits at the new page's box; the images do the moving */
+::view-transition-image-pair(page) { overflow: clip; }
+::view-transition-old(page), ::view-transition-new(page) { width: 100%; height: 100%; object-fit: none; object-position: top left; }
+::view-transition-old(page) { animation: vt-page-out 320ms var(--ease-travel), vt-fade-out 320ms ease; }
+::view-transition-new(page) { animation: vt-page-in 320ms var(--ease-travel), vt-fade-in 320ms ease; }
+:root.vt-back::view-transition-old(page), :root.vt-back::view-transition-new(page) { animation-duration: 240ms; }
+::view-transition-group(bar) { animation: none; }
+::view-transition-old(bar) { display: none; }                    /* the bar does not change: draw the new one only, no crossfade */
+/* Chrome does not animate. With the surface travelling, the header (which scrolls
+   with the page, so it was off-screen in a scrolled list) would otherwise fade
+   in over the move and read as a page appearing; instead the new root paints
+   from the first frame and the surface moves beneath it. Reduced motion keeps
+   the root crossfade — there it is the only motion. */
+:root.vt-travel::view-transition-old(root) { display: none; }
+:root.vt-travel::view-transition-new(root) { animation: none; }
 ::view-transition-old(row), ::view-transition-new(row) {
   width: 100%; height: 100%; object-fit: none; object-position: top left;   /* reveal, never stretch: the head is uncovered as the box grows */
 }
@@ -2087,21 +2113,38 @@ window.addEventListener('hashchange', () => {
   const back = prev.name === 'house' && route.name === 'shortlist';
   if (!(forward || back) || !document.startViewTransition) { update(); return; }
   const tag = (row, addr) => { row?.classList.add('vt-row'); addr?.classList.add('vt-addr'); };
-  const untag = () => document.querySelectorAll('.vt-row, .vt-addr').forEach(el => el.classList.remove('vt-row', 'vt-addr'));
+  const untag = () => document.querySelectorAll('.vt-row, .vt-addr, .vt-page, .vt-bar').forEach(el => el.classList.remove('vt-row', 'vt-addr', 'vt-page', 'vt-bar'));
   const tagRow = id => { const link = document.querySelector(`.sl-link[href="#house/${id}"]`); tag(link?.closest('.sl-row'), link); };
   const tagHead = () => tag(document.querySelector('.house-head'), document.querySelector('.house-head .hh-title'));
+  const anchor = () => document.querySelector('.vt-row')?.getBoundingClientRect().top;   // the box's edge, before and after
+  const pageTop = () => $('page').getBoundingClientRect().top;
   const travel = !reduced();                         // reduced motion: the root crossfade only, nothing moves
   untag();                                           // a move started mid-move: drop the running one's tags first, or the names collide
   S.vt?.skipTransition();
-  if (travel) forward ? tagRow(route.id) : tagHead();
+  let fromTop, fromPage;
+  if (travel) {
+    forward ? tagRow(route.id) : tagHead();
+    $('page').classList.add('vt-page'); document.querySelector('.sections')?.classList.add('vt-bar');
+    fromTop = anchor(); fromPage = pageTop();
+  }
   document.documentElement.classList.toggle('vt-back', back);
-  const vt = S.vt = document.startViewTransition(() => { update(); if (travel) forward ? tagHead() : tagRow(prev.id); });
+  document.documentElement.classList.toggle('vt-travel', travel);
+  const vt = S.vt = document.startViewTransition(() => {
+    update();
+    if (!travel) return;
+    forward ? tagHead() : tagRow(prev.id);
+    $('page').classList.add('vt-page');
+    const toTop = anchor();
+    const dy = (fromTop != null && toTop != null) ? toTop - fromTop : 0;      // the box's travel (negative = up)
+    document.documentElement.style.setProperty('--vt-dy', dy + 'px');
+    document.documentElement.style.setProperty('--vt-off', (fromPage - pageTop()) + 'px');   // where the old surface sat, relative to the new
+  });
   vt.ready.catch(() => {});                          // a skipped transition rejects here; the page is already in its new state
   vt.finished.finally(() => {
     if (S.vt !== vt) return;                         // a newer transition owns the tags now
     S.vt = null;
     untag();
-    document.documentElement.classList.remove('vt-back');
+    document.documentElement.classList.remove('vt-back', 'vt-travel');
   });
 });
 

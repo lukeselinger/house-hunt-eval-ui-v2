@@ -199,17 +199,33 @@ a { color: var(--accent-strong); text-decoration-thickness: from-font; text-unde
     font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.01em;
   }
   .sections a .count { display: none; }   /* the bar names places; counts live on the pages */
-  /* floating pill variant (?bar=pill): Redfin / Slack shape */
+  /* floating pill variant (?bar=pill). Feel-iteration 1 (Luke, 2026-09-14):
+     an opaque card "seems too big and doesn't read as an overlay ... it
+     should be floating over the content, not blocking it". So: a glass
+     material — translucent surface + backdrop blur (16px, under the 20px
+     performance ceiling; Safari needs the prefix) + a specular inner edge —
+     sized to the 44px item, inset from the edges, with the page scrolling
+     visibly beneath it. Dark mode: the shadow stack collapses to the ring. */
   [data-bar="pill"] .sections {
-    left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 16px; right: 16px; bottom: calc(10px + env(safe-area-inset-bottom));
     padding: 4px; padding-bottom: 4px;
-    background: var(--card);
+    background: color-mix(in oklch, var(--card) 68%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(1.6);
+    backdrop-filter: blur(16px) saturate(1.6);
     border: 0; border-radius: 999px;
-    box-shadow: var(--shadow-card), 0 8px 24px -8px oklch(0 0 0 / 0.18);
+    box-shadow:
+      inset 0 0 0 1px oklch(1 0 0 / 0.55),          /* glass edge, lit from above */
+      0 0 0 1px oklch(0 0 0 / 0.06),
+      0 1px 3px oklch(0 0 0 / 0.06),
+      0 10px 28px -10px oklch(0 0 0 / 0.22);
   }
-  [data-bar="pill"] .sections a { min-height: 52px; border-radius: 999px; }
-  [data-bar="pill"] .sections a[aria-current="page"] { background: var(--accent-tint); }
-  html[data-bar="pill"] { --bar-h: 76px; }
+  [data-theme="dark"][data-bar="pill"] .sections {
+    background: color-mix(in oklch, var(--card) 62%, transparent);
+    box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 0 0 1px oklch(0 0 0 / 0.35);
+  }
+  [data-bar="pill"] .sections a { min-height: 44px; border-radius: 999px; gap: 2px; }
+  [data-bar="pill"] .sections a[aria-current="page"] { background: color-mix(in oklch, var(--accent-tint) 85%, transparent); }
+  html[data-bar="pill"] { --bar-h: 62px; }   /* 52 tall + the 10px it floats above the edge: the last row clears it, the rest scrolls beneath */
 }
 @media (min-width: 640px) {
   :root { --bar-h: 0px; }

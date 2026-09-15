@@ -6,7 +6,11 @@
 <title>House Hunt — Eval v2</title>
 <script>
   // Resolve theme before first paint so refresh never flashes the wrong theme.
+  // ?theme=dark|light forces a theme for this page load without touching
+  // localStorage (headless screenshots, the probe).
+  const forcedTheme = new URLSearchParams(location.search).get('theme');
   document.documentElement.dataset.theme =
+    (forcedTheme === 'dark' || forcedTheme === 'light' ? forcedTheme : null) ||
     localStorage.getItem('hh2-theme') ||
     (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   // Sections-bar style trial (Luke, 2026-09-14: "I would like to see it both
@@ -200,31 +204,50 @@ a { color: var(--accent-strong); text-decoration-thickness: from-font; text-unde
   }
   .sections a .count { display: none; }   /* the bar names places; counts live on the pages */
   /* floating pill variant (?bar=pill). Feel-iteration 1 (Luke, 2026-09-14):
-     an opaque card "seems too big and doesn't read as an overlay ... it
-     should be floating over the content, not blocking it". So: a glass
-     material — translucent surface + backdrop blur (16px, under the 20px
-     performance ceiling; Safari needs the prefix) + a specular inner edge —
-     sized to the 44px item, inset from the edges, with the page scrolling
-     visibly beneath it. Dark mode: the shadow stack collapses to the ring. */
+     an opaque card "seems too big and doesn't read as an overlay". Feel-
+     iteration 2 (Luke, 2026-09-15, and confirmed in a headless screenshot):
+     still "reads as opaque ... missing the transparency and the blur of the
+     content underneath ... no evidence of any lit edge; elevation weaker in
+     dark". The fill was 68% of a colour that matches the page, so the blur
+     had nothing to show. Now: a thin fill (white 42% light / white 9% dark —
+     lighter than the page so it lifts), blur at the 20px performance
+     ceiling with saturation, a gradient rim brightest at the top (lit from
+     above), a shade along the bottom for thickness, and an ambient shadow
+     that stays visible in dark because the bar is lighter than the page. */
   [data-bar="pill"] .sections {
     left: 16px; right: 16px; bottom: calc(10px + env(safe-area-inset-bottom));
     padding: 4px; padding-bottom: 4px;
-    background: color-mix(in oklch, var(--card) 68%, transparent);
-    -webkit-backdrop-filter: blur(16px) saturate(1.6);
-    backdrop-filter: blur(16px) saturate(1.6);
+    background: oklch(1 0 0 / 0.42);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    backdrop-filter: blur(20px) saturate(1.8);
     border: 0; border-radius: 999px;
     box-shadow:
-      inset 0 0 0 1px oklch(1 0 0 / 0.55),          /* glass edge, lit from above */
-      0 0 0 1px oklch(0 0 0 / 0.06),
-      0 1px 3px oklch(0 0 0 / 0.06),
-      0 10px 28px -10px oklch(0 0 0 / 0.22);
+      inset 0 -1px 0 oklch(0 0 0 / 0.05),
+      0 1px 2px oklch(0 0 0 / 0.06),
+      0 12px 32px -8px oklch(0 0 0 / 0.28);
+    isolation: isolate;
+  }
+  [data-bar="pill"] .sections::before {          /* the rim: a 1px gradient ring, brightest at the top */
+    content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+    background: linear-gradient(to bottom, oklch(1 0 0 / 0.9), oklch(1 0 0 / 0.25));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
   }
   [data-theme="dark"][data-bar="pill"] .sections {
-    background: color-mix(in oklch, var(--card) 62%, transparent);
-    box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 0 0 1px oklch(0 0 0 / 0.35);
+    background: oklch(1 0 0 / 0.09);
+    box-shadow:
+      inset 0 -1px 0 oklch(0 0 0 / 0.3),
+      0 1px 2px oklch(0 0 0 / 0.4),
+      0 12px 32px -8px oklch(0 0 0 / 0.6);
   }
-  [data-bar="pill"] .sections a { min-height: 44px; border-radius: 999px; gap: 2px; }
-  [data-bar="pill"] .sections a[aria-current="page"] { background: color-mix(in oklch, var(--accent-tint) 85%, transparent); }
+  [data-theme="dark"][data-bar="pill"] .sections::before {
+    background: linear-gradient(to bottom, oklch(1 0 0 / 0.32), oklch(1 0 0 / 0.06));
+  }
+  [data-bar="pill"] .sections a { position: relative; min-height: 44px; border-radius: 999px; gap: 2px; }
+  [data-bar="pill"] .sections a[aria-current="page"] { background: oklch(1 0 0 / 0.55); box-shadow: 0 1px 2px oklch(0 0 0 / 0.06); }   /* a brighter pane of the same glass; accent stays on the glyph and label */
+  [data-theme="dark"][data-bar="pill"] .sections a[aria-current="page"] { background: oklch(1 0 0 / 0.12); box-shadow: none; }
   html[data-bar="pill"] { --bar-h: 62px; }   /* 52 tall + the 10px it floats above the edge: the last row clears it, the rest scrolls beneath */
 }
 @media (min-width: 640px) {

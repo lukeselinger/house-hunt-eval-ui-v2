@@ -129,6 +129,13 @@ button {
   -webkit-user-select: none;
 }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* Headings focused as the landing point after a route change (tabindex -1) are not
+   controls. Safari draws :focus-visible for script-driven focus (Chrome does not),
+   which put a black box on the Shortlist title and the house address on the phone
+   (Luke, 2026-09-15). The ring is drawn only while the keyboard is driving
+   (html[data-kb]: set on Tab/Enter/arrows, cleared on any pointer). */
+h2[tabindex="-1"]:focus { outline: none; }
+html[data-kb] h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 [hidden] { display: none !important; }
 a { color: var(--accent-strong); text-decoration-thickness: from-font; text-underline-offset: 2px; }
 .wrap { max-width: 640px; margin-inline: auto; padding-inline: 16px; }
@@ -2156,6 +2163,10 @@ window.addEventListener('hashchange', () => {
     document.documentElement.classList.remove('vt-back', 'vt-travel');
   });
 });
+
+// Input modality, for the landing-heading ring above: keyboard sets it, any pointer clears it.
+addEventListener('keydown', e => { if (e.key === 'Tab' || e.key === 'Enter' || e.key === ' ' || e.key.startsWith('Arrow')) document.documentElement.dataset.kb = ''; }, true);
+addEventListener('pointerdown', () => { delete document.documentElement.dataset.kb; }, true);
 
 window.addEventListener('beforeunload', e => {
   if (S.pendingSaves > 0) { e.preventDefault(); e.returnValue = ''; }

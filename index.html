@@ -585,8 +585,11 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 ::view-transition-group(page) { animation: none; }               /* the group sits at the new page's box; the images do the moving */
 ::view-transition-image-pair(page) { clip-path: inset(0 -40px -40px -40px); }   /* clipped only at the top, under the header; the surfaces' shadows at the sides survive */
 ::view-transition-old(page), ::view-transition-new(page) { width: 100%; height: 100%; object-fit: none; object-position: top left; overflow: visible; }
-::view-transition-old(page) { animation: vt-page-out var(--vt-dur, 320ms) var(--ease-travel), vt-fade-out var(--vt-dur, 320ms) ease; }
-::view-transition-new(page) { animation: vt-page-in var(--vt-dur, 320ms) var(--ease-travel), vt-fade-in var(--vt-dur, 320ms) ease; }
+::view-transition-old(page) { animation: vt-page-out var(--vt-dur, 320ms) var(--ease-travel), vt-fade-out var(--vt-dur, 320ms) ease; animation-fill-mode: both; }
+::view-transition-new(page) { animation: vt-page-in var(--vt-dur, 320ms) var(--ease-travel), vt-fade-in var(--vt-dur, 320ms) ease; animation-fill-mode: both; }
+/* fill-mode both, stated after the shorthand (which resets it to none): Safari keeps the
+   pseudo tree a frame past the last animation, and without fill the old surface snapped
+   back to full opacity for that frame — the flash behind the Back link (feel-iteration 4) */
 :root.vt-back::view-transition-old(page), :root.vt-back::view-transition-new(page) { animation-duration: calc(var(--vt-dur, 320ms) * 0.75); }
 ::view-transition-group(bar) { animation: none; }
 ::view-transition-old(bar) { display: none; }                    /* the bar does not change: draw the new one only, no crossfade */
